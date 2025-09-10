@@ -4,7 +4,7 @@ import { Box, Paper } from "@mui/material";
 import ChatSidebar from "./ChatSidebar";
 import ChatWindow from "./ChatWindow";
 import axios from "axios";
-const API_URL = import.meta.env.VITE_REACT_APP_API_URL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Chats = () => {
   const [users, setUsers] = useState([]);

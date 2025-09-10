@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button, TextField, Typography, Box } from "@mui/material";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import axios from "axios";
-const API_URL = import.meta.env.VITE_REACT_APP_API_URL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Login = () => {
   const [email, setEmail] = useState(""); // renamed

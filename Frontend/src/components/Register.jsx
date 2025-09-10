@@ -6,7 +6,7 @@ import TextField from "@mui/material/TextField";
 import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import { Box, Typography } from "@mui/material";
 import axios from "axios";
-const API_URL = import.meta.env.VITE_REACT_APP_API_URL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Register = () => {
   const [name, setName] = useState("");

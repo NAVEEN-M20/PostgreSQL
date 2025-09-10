@@ -5,7 +5,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import SendIcon from '@mui/icons-material/Send';
 import { io } from "socket.io-client";
 import axios from "axios";
-const API_URL = import.meta.env.VITE_REACT_APP_API_URL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 let socket; // single socket instance for module
 
