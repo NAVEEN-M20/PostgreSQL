@@ -1,0 +1,3 @@
++++
+/api/*  https://task-portal-440b.onrender.com/api/:splat  200
+/socket.io/*  https://task-portal-440b.onrender.com/socket.io/:splat  200/*  /index.html 200
