@@ -5,7 +5,7 @@ import Login from "./Login";
 import Register from "./Register";
 import Dashboard from "./Dashboard";
 import Newtask from "./Newtask";
-import Chat from "./Chat";
+import Chat from "./Chat"
 const API_URL = import.meta.env.VITE_API_URL;
 
 const App = () => {

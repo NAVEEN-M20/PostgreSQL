@@ -1,22 +1,14 @@
-import React, { useEffect, useState } from "react";
-import {
-  Button,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  IconButton,
-  Paper,
-} from "@mui/material";
+import React, { useEffect, useState, useContext } from "react";
+import { Button, Typography, List, ListItem, ListItemText, Divider, IconButton, Paper } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
+import { UserContext } from "./UserContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 function Dashboard() {
   const [tasks, setTasks] = useState([]);
-  const [user, setUser] = useState(null);
+  const { user, setUser } = useContext(UserContext);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -24,15 +16,14 @@ function Dashboard() {
         const res = await axios.get(`${API_URL}/api/dashboard`, {
           withCredentials: true,
         });
-        setUser(res.data.user);
+        setUser(res.data.user); // update global user from server
         setTasks(res.data.tasks);
       } catch (err) {
         console.error("Error loading dashboard:", err);
       }
     };
-
     fetchDashboard();
-  }, []);
+  }, [setUser]);
 
   const handleDelete = async (taskId) => {
     try {
@@ -46,55 +37,41 @@ function Dashboard() {
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 3, m: 3 }}>
-      <Typography variant="h4" gutterBottom>
+    <Box>
+      <Typography variant="h5">
         Welcome, {user?.name || "User"} 👋
       </Typography>
-
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Your Tasks
-      </Typography>
-
+      <Typography variant="subtitle1">Your Tasks</Typography>
       {tasks.length === 0 ? (
-        <Typography color="textSecondary">No tasks assigned yet.</Typography>
+        <Typography>No tasks assigned yet.</Typography>
       ) : (
-        <List sx={{ width: "100%", maxWidth: 600, bgcolor: "background.paper" }}>
+        <List>
           {tasks.map((task, index) => (
             <React.Fragment key={task.id}>
               <ListItem
-                alignItems="flex-start"
                 secondaryAction={
-                  <IconButton
-                    edge="end"
-                    color="error"
-                    onClick={() => handleDelete(task.id)}
-                  >
+                  <IconButton edge="end" onClick={() => handleDelete(task.id)}>
                     <DeleteIcon />
                   </IconButton>
                 }
               >
                 <ListItemText
-                  primary={
-                    <Typography variant="h6" component="div">
-                      {task.title}
-                    </Typography>
-                  }
+                  primary={task.title}
                   secondary={
                     <>
-                      <Typography variant="body2">{task.description}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Assigned by: <b>{task.assigned_by_name}</b>
-                      </Typography>
+                      <span>{task.description}</span>
+                      <br />
+                      <span>Assigned by: {task.assigned_by_name}</span>
                     </>
                   }
                 />
               </ListItem>
-              {index < tasks.length - 1 && <Divider component="li" />}
+              {index < tasks.length - 1 && <Divider />}
             </React.Fragment>
           ))}
         </List>
       )}
-    </Paper>
+    </Box>
   );
 }
 

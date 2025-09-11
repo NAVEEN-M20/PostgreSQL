@@ -1,25 +1,28 @@
-// Login.jsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, TextField, Typography, Box } from "@mui/material";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import axios from "axios";
+import { UserContext } from "./UserContext";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Login = () => {
-  const [email, setEmail] = useState(""); // renamed
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const { setUser } = useContext(UserContext);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const res = await axios.post(
-  `${API_URL}/api/login`,
-        { username: email, password }, // passport-local expects username param
+        `${API_URL}/api/login`,
+        { username: email, password },
         { withCredentials: true }
       );
       if (res.data?.success) {
+        setUser(res.data.user); // update user context
         navigate("/dashboard");
       } else {
         alert(res.data.error || "Login failed");
@@ -31,36 +34,34 @@ const Login = () => {
   };
 
   return (
-    <Box className="account_page">
+    <Box>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        Login
+      </Typography>
       <form onSubmit={handleLogin}>
-        <Typography variant="h4" align="center" sx={{ mb: 2 }}>
-          <AccountCircleIcon /> Login
-        </Typography>
         <TextField
-          required
           label="Email"
-          fullWidth
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={e => setEmail(e.target.value)}
           sx={{ mb: 2 }}
           type="email"
+          fullWidth
         />
         <TextField
-          required
           label="Password"
-          fullWidth
-          type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={e => setPassword(e.target.value)}
           sx={{ mb: 3 }}
+          type="password"
+          fullWidth
         />
-        <Button variant="contained" type="submit" fullWidth size="large">
+        <Button type="submit" variant="contained" color="primary" fullWidth>
           Login
         </Button>
-        <Typography align="center" sx={{ mt: 2 }}>
-          Don't have an account? <Link to="/register">Register</Link>
-        </Typography>
       </form>
+      <Typography sx={{ mt: 2 }}>
+        Don't have an account? <Link to="/register">Register</Link>
+      </Typography>
     </Box>
   );
 };
