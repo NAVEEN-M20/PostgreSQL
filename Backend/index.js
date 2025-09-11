@@ -209,7 +209,7 @@ app.post("/api/logout", (req, res) => {
 passport.use(
   new Strategy(async function verify(username, password, cb) {
     try {
-      const result = await db.query("SELECT * FROM users WHERE email = $1 ", [username]);
+      const result = await db.query("SELECT * FROM users WHERE email = $1", [username]);
       if (result.rows.length === 0) return cb(null, false);
 
       const user = result.rows[0];
@@ -218,14 +218,25 @@ passport.use(
         return valid ? cb(null, user) : cb(null, false);
       });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       return cb(err);
     }
   })
 );
 
-passport.serializeUser((user, cb) => cb(null, user));
-passport.deserializeUser((user, cb) => cb(null, user));
+// ✅ Only store user.id in session
+passport.serializeUser((user, cb) => cb(null, user.id));
+
+// ✅ Load full user from DB when session is restored
+passport.deserializeUser(async (id, cb) => {
+  try {
+    const result = await db.query("SELECT id, name, email FROM users WHERE id = $1", [id]);
+    cb(null, result.rows[0]);
+  } catch (err) {
+    cb(err);
+  }
+});
+
 
 // ----------------- CHAT APIs -----------------
 app.get("/api/messages/:otherUserId", async (req, res) => {
