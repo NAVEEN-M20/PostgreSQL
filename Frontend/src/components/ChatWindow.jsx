@@ -1,51 +1,34 @@
-// ChatWindow.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { Box, Typography, TextField, Button, Paper, Divider } from "@mui/material";
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import SendIcon from '@mui/icons-material/Send';
+import { Box, Typography, TextField, Button, Paper } from "@mui/material";
 import { io } from "socket.io-client";
 import axios from "axios";
 const API_URL = import.meta.env.VITE_API_URL;
 
-let socket; // single socket instance for module
+let socket;
 
 const ChatWindow = ({ currentUser, otherUser }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const messagesRef = useRef(null);
 
-  // initialize socket once
   useEffect(() => {
     if (!socket) {
-    socket = io(API_URL, { withCredentials: true });
+      socket = io(API_URL, { withCredentials: true });
+      socket.on("receiveMessage", msg => setMessages(prev => [...prev, msg]));
+      socket.on("messageSent", msg => setMessages(prev => [...prev, msg]));
+      return () => {
+        socket.off("receiveMessage");
+        socket.off("messageSent");
+      };
     }
-
-    // message events
-    const onReceive = (message) => {
-      setMessages((prev) => [...prev, message]);
-    };
-
-    const onMessageSent = (message) => {
-      setMessages((prev) => [...prev, message]);
-    };
-
-    socket.on("receiveMessage", onReceive);
-    socket.on("messageSent", onMessageSent);
-
-    return () => {
-      socket.off("receiveMessage", onReceive);
-      socket.off("messageSent", onMessageSent);
-    };
   }, []);
 
-  // register current user on socket when available
   useEffect(() => {
     if (currentUser && socket) {
       socket.emit("register", currentUser.id);
     }
   }, [currentUser]);
 
-  // load conversation when otherUser changes
   useEffect(() => {
     const fetchMessages = async () => {
       if (!otherUser || !currentUser) {
@@ -53,10 +36,7 @@ const ChatWindow = ({ currentUser, otherUser }) => {
         return;
       }
       try {
-  const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, 
-          { withCredentials: true }
-        );
-        // server returns array of messages
+        const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, { withCredentials: true });
         setMessages(res.data || []);
       } catch (err) {
         console.error("Error fetching messages:", err);
@@ -65,7 +45,6 @@ const ChatWindow = ({ currentUser, otherUser }) => {
     fetchMessages();
   }, [otherUser, currentUser]);
 
-  // scroll into view when messages change
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -74,110 +53,52 @@ const ChatWindow = ({ currentUser, otherUser }) => {
 
   const sendMessage = () => {
     if (!text.trim() || !otherUser || !currentUser) return;
-
-    const payload = {
+    socket.emit("sendMessage", {
       senderId: currentUser.id,
       receiverId: otherUser.id,
       message: text,
-    };
-
-    // Emit via socket (backend handles DB insert)
-    socket.emit("sendMessage", payload);
-
-    // option: optimistic UI (backend will also emit messageSent back to sender)
+    });
     setText("");
   };
 
-  if (!otherUser) {
-    return (
-      <Paper sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
-        <Typography color="text.secondary">Select a user to start chatting</Typography>
-      </Paper>
-    );
-  }
-
-  return (
-  <Paper sx={{ flex: 1, display: "flex", flexDirection: "column", p: 2, height: "100%" }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <AccountCircleIcon sx={{ mr: 1 }} />
-        <Typography variant="h6">
-          {otherUser.name || otherUser.email}
-        </Typography>
-      </Box>
-      <Divider />
-
-      {/* Messages */}
-      <Box
-        ref={messagesRef}
-        sx={{ flex: 1, overflowY: "auto", my: 2, pr: 1 }}
-      >
+  return !otherUser ? (
+    <Typography>Select a user to start chatting</Typography>
+  ) : (
+    <Paper sx={{ p: 2, height: 480, display: "flex", flexDirection: "column" }}>
+      <Typography variant="h6">{otherUser.name} ({otherUser.email})</Typography>
+      <Box ref={messagesRef} sx={{
+        flex: 1,
+        overflowY: "auto",
+        mt: 1,
+        mb: 2,
+        backgroundColor: "#fafafa",
+        borderRadius: 1,
+        p: 1
+      }}>
         {messages.map((m, i) => {
-          // backend returns sender_id and message
           const mine = m.sender_id === currentUser?.id;
           return (
-            <Box
-              key={i}
-              sx={{
-                display: "flex",
-                justifyContent: mine ? "flex-end" : "flex-start",
-                mb: 1,
-              }}
-            >
-              <Box
-                sx={{
-                  px: 1.5,
-                  py: 1,
-                  borderRadius: 2,
-                  maxWidth: "70%",
-                  bgcolor: mine ? "primary.main" : "grey.200",
-                  color: mine ? "primary.contrastText" : "text.primary",
-                }}
-              >
-                <Typography variant="body2">{m.message}</Typography>
-                {m.created_at && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      opacity: 0.7,
-                      display: "block",
-                      textAlign: mine ? "right" : "left",
-                      fontSize: "0.7rem"
-                    }}
-                  >
-                    {new Date(m.created_at).toLocaleDateString()} {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                  </Typography>
-                )}
-              </Box>
+            <Box key={m.id || i} textAlign={mine ? "right" : "left"} mb={2}>
+              <Typography variant="body2">{m.message}</Typography>
+              <Typography variant="caption" color="textSecondary">
+                {mine ? currentUser?.name : otherUser?.name} — {new Date(m.created_at).toLocaleTimeString()}
+              </Typography>
             </Box>
           );
         })}
       </Box>
-
-      {/* Input */}
-      <Box sx={{ display: "flex", gap: 1 }}>
-        <TextField
-          fullWidth
-          size="small"
-          placeholder="Type a message..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-        />
-        <Button
-          variant="contained"
-          onClick={sendMessage}
-          endIcon={<SendIcon />}
-          sx={{ minWidth: 90, justifyContent: 'flex-end' }}
-        >
-          Send
-        </Button>
-      </Box>
+      <TextField
+        label="Type a message"
+        multiline
+        fullWidth
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && !e.shiftKey ? (e.preventDefault(), sendMessage()) : null}
+        sx={{ mt: 1 }}
+      />
+      <Button onClick={sendMessage} sx={{ minWidth: 90, mt: 1, alignSelf: "flex-end" }} variant="contained">
+        Send
+      </Button>
     </Paper>
   );
 };

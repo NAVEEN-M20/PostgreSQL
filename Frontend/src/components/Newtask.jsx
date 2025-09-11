@@ -1,9 +1,15 @@
-// Newtask.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box, Button, TextField, Typography,
-  Select, MenuItem, InputLabel, FormControl
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Paper
 } from "@mui/material";
 import axios from "axios";
 const API_URL = import.meta.env.VITE_API_URL;
@@ -18,7 +24,7 @@ const NewTask = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-  const res = await axios.get(`${API_URL}/api/users`, { withCredentials: true });
+        const res = await axios.get(`${API_URL}/api/users`, { withCredentials: true });
         if (res.status === 200) {
           setUsers(res.data);
         } else {
@@ -36,7 +42,7 @@ const NewTask = () => {
     e.preventDefault();
     try {
       const res = await axios.post(
-  `${API_URL}/api/task/new`,
+        `${API_URL}/api/task/new`,
         { title, description, assigned_to: assignedTo },
         { withCredentials: true }
       );
@@ -53,23 +59,26 @@ const NewTask = () => {
   };
 
   return (
-    <Box className="newtask_page">
-      <Box className="taskform-container">
-        <Typography variant="h5" sx={{ mb: 3 }}>Assign a new task</Typography>
+    <Box display="flex" justifyContent="center">
+      <Paper sx={{ p: 4, minWidth: 350 }}>
+        <Typography variant="h4" align="center" gutterBottom>
+          Assign a new task
+        </Typography>
         <form onSubmit={handleTaskSubmit}>
-          <TextField label="Title" required fullWidth sx={{ mb: 2 }} value={title} onChange={e => setTitle(e.target.value)} />
-          <TextField label="Description" required fullWidth multiline rows={3} sx={{ mb: 2 }} value={description} onChange={e => setDescription(e.target.value)} />
-          <FormControl fullWidth sx={{ mb: 3 }}>
-            <InputLabel id="assign-user-label">Assign to</InputLabel>
+          <TextField label="Task Title" value={title} onChange={e => setTitle(e.target.value)} fullWidth sx={{ mb: 2 }} required />
+          <TextField label="Task Description" value={description} onChange={e => setDescription(e.target.value)} fullWidth sx={{ mb: 2 }} required />
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="assign-label">Assign to</InputLabel>
             <Select
-              labelId="assign-user-label"
+              labelId="assign-label"
               value={assignedTo}
               label="Assign to"
               onChange={e => setAssignedTo(e.target.value)}
-              required>
+              required
+            >
               {users.map(u => (
                 <MenuItem key={u.id} value={u.id}>
-                  {u.email}
+                  {u.name} ({u.email})
                 </MenuItem>
               ))}
             </Select>
@@ -78,7 +87,7 @@ const NewTask = () => {
             Create Task
           </Button>
         </form>
-      </Box>
+      </Paper>
     </Box>
   );
 };
