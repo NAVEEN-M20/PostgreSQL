@@ -69,19 +69,26 @@ io.on("connection", (socket) => {
 // ----------------- MIDDLEWARE -----------------
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "fallbacksecret", // ⚡ changed env name
+    secret: process.env.SESSION_SECRET || "fallbacksecret",
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,   // ⚡ FIXED: don’t create empty sessions
+    cookie: {
+      sameSite: "none",         // ⚡ FIXED: allow cross-site cookies
+      secure: true,             // ⚡ FIXED: required on HTTPS (Render)
+    },
   })
 );
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173", // ⚡ Netlify URL in env
-    credentials: true,
+    origin: process.env.FRONTEND_URL || "https://taskportalx.netlify.app", // ⚡ FIXED: Netlify URL
+    credentials: true, // ⚡ FIXED: allow cookies
   })
 );
+
 app.use(passport.initialize());
 app.use(passport.session());
 
