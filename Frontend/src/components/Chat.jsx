@@ -12,6 +12,12 @@ const Chat = () => {
   const { user } = useContext(UserContext);
 
   useEffect(() => {
+    // fetch users only after user is loaded (so backend can authorize)
+    if (!user) {
+      setUsers([]);
+      return;
+    }
+
     const fetchUsers = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/users`, { withCredentials: true });
@@ -21,7 +27,7 @@ const Chat = () => {
       }
     };
     fetchUsers();
-  }, []);
+  }, [user]);
 
   return (
     <Box display="flex">

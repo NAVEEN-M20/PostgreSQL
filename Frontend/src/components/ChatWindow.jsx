@@ -12,19 +12,31 @@ const ChatWindow = ({ currentUser, otherUser }) => {
   const messagesRef = useRef(null);
 
   useEffect(() => {
+    // create socket once
     if (!socket) {
       socket = io(API_URL, { withCredentials: true });
-      socket.on("receiveMessage", msg => setMessages(prev => [...prev, msg]));
-      socket.on("messageSent", msg => setMessages(prev => [...prev, msg]));
-      return () => {
+      socket.on("receiveMessage", (msg) => setMessages((prev) => [...prev, msg]));
+      socket.on("messageSent", (msg) => setMessages((prev) => [...prev, msg]));
+      socket.on("connect_error", (err) => {
+        console.error("Socket connect error:", err);
+      });
+    }
+    // cleanup listeners on unmount (not removing socket itself to reuse)
+    return () => {
+      if (socket) {
         socket.off("receiveMessage");
         socket.off("messageSent");
-      };
-    }
+      }
+    };
   }, []);
 
   useEffect(() => {
-    if (currentUser && socket) {
+    // when logged-in user (currentUser) becomes available, register with socket
+    if (currentUser && socket && socket.connected) {
+      socket.emit("register", currentUser.id);
+    } else if (currentUser && socket && !socket.connected) {
+      // try to connect then register
+      socket.connect();
       socket.emit("register", currentUser.id);
     }
   }, [currentUser]);
@@ -36,7 +48,9 @@ const ChatWindow = ({ currentUser, otherUser }) => {
         return;
       }
       try {
-        const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, { withCredentials: true });
+        const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, {
+          withCredentials: true,
+        });
         setMessages(res.data || []);
       } catch (err) {
         console.error("Error fetching messages:", err);
@@ -66,22 +80,25 @@ const ChatWindow = ({ currentUser, otherUser }) => {
   ) : (
     <Paper sx={{ p: 2, height: 480, display: "flex", flexDirection: "column" }}>
       <Typography variant="h6">{otherUser.name} ({otherUser.email})</Typography>
-      <Box ref={messagesRef} sx={{
-        flex: 1,
-        overflowY: "auto",
-        mt: 1,
-        mb: 2,
-        backgroundColor: "#fafafa",
-        borderRadius: 1,
-        p: 1
-      }}>
+      <Box
+        ref={messagesRef}
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          mt: 1,
+          mb: 2,
+          backgroundColor: "#fafafa",
+          borderRadius: 1,
+          p: 1,
+        }}
+      >
         {messages.map((m, i) => {
-          const mine = m.sender_id === currentUser?.id;
+          const mine = m.sender_id === currentUser?.id || m.senderId === currentUser?.id;
           return (
             <Box key={m.id || i} textAlign={mine ? "right" : "left"} mb={2}>
-              <Typography variant="body2">{m.message}</Typography>
+              <Typography variant="body2">{m.message || m.content}</Typography>
               <Typography variant="caption" color="textSecondary">
-                {mine ? currentUser?.name : otherUser?.name} — {new Date(m.created_at).toLocaleTimeString()}
+                {mine ? currentUser?.name : otherUser?.name} — {m.created_at ? new Date(m.created_at).toLocaleTimeString() : ""}
               </Typography>
             </Box>
           );
@@ -92,8 +109,10 @@ const ChatWindow = ({ currentUser, otherUser }) => {
         multiline
         fullWidth
         value={text}
-        onChange={e => setText(e.target.value)}
-        onKeyDown={e => e.key === "Enter" && !e.shiftKey ? (e.preventDefault(), sendMessage()) : null}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) =>
+          e.key === "Enter" && !e.shiftKey ? (e.preventDefault(), sendMessage()) : null
+        }
         sx={{ mt: 1 }}
       />
       <Button onClick={sendMessage} sx={{ minWidth: 90, mt: 1, alignSelf: "flex-end" }} variant="contained">

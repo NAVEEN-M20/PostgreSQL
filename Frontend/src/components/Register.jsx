@@ -1,11 +1,13 @@
 // Register.jsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 import { Box, Typography } from "@mui/material";
 import axios from "axios";
+import { UserContext } from "./UserContext";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Register = () => {
@@ -13,15 +15,21 @@ const Register = () => {
   const [email, setEmail] = useState(""); // renamed
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+
+  // <-- set user in context so frontend updates immediately
+  const { setUser } = useContext(UserContext);
+
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
       const res = await axios.post(
-  `${API_URL}/api/register`,
+        `${API_URL}/api/register`,
         { name, email, password },
         { withCredentials: true }
       );
       if (res.data.success) {
+        // set user in context (important)
+        setUser(res.data.user);
         navigate("/dashboard");
       } else {
         alert(res.data.error || "Registration failed");
