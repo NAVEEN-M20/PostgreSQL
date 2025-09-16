@@ -1,84 +1,140 @@
-// Register.jsx
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
+import {
+  TextField,
+  Button,
+  Typography,
+  Link as MuiLink,
+  IconButton,
+  InputAdornment,
+} from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
-import { Box, Typography } from "@mui/material";
+import AuthLayout from "./AuthLayout";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt"; // Icon for Register form
 import axios from "axios";
-import { UserContext } from "./UserContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Register = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState(""); // renamed
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  // <-- set user in context so frontend updates immediately
-  const { setUser } = useContext(UserContext);
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const togglePasswordVisibility = () => setShowPassword(p => !p);
 
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(
-        `${API_URL}/api/register`,
-        { name, email, password },
-        { withCredentials: true }
-      );
-      if (res.data.success) {
-        // set user in context (important)
-        setUser(res.data.user);
-        navigate("/dashboard");
+      const res = await axios.post(`${API_URL}/api/register`, form);
+      if (res.data?.success) {
+        alert("Registration successful! Please log in.");
+        navigate("/login");
       } else {
         alert(res.data.error || "Registration failed");
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("Server error while registering");
     }
   };
+
   return (
-    <Box className="account_page">
-      <form onSubmit={handleRegister}>
-        <Typography variant="h4" align="center" sx={{ mb: 2 }}>
-          <SwitchAccountIcon /> Register
+    <AuthLayout
+     title={
+    <Typography
+      variant="h5"
+      sx={{
+        fontWeight: 600,
+        mb: 3,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",   
+        gap: 1,
+        width: "100%",             
+        textAlign: "center",        
+      }}
+    >
+          <PersonAddAltIcon sx={{ fontSize: 28 }} />
+          Register
         </Typography>
+      }
+      description="Manage your projects and tasks effortlessly with Task Portal."
+    >
+      <form onSubmit={handleRegister} noValidate>
         <TextField
-          required
           label="Name"
+          name="name"
+          value={form.name}
+          onChange={handleChange}
           fullWidth
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          sx={{ mb: 2 }}
+          required
+          autoFocus
+          sx={{ mb: 2, background: "#fafbff", borderRadius: "10px" }}
         />
         <TextField
-          required
           label="Email"
-          fullWidth
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          sx={{ mb: 2 }}
+          name="email"
           type="email"
+          value={form.email}
+          onChange={handleChange}
+          fullWidth
+          required
+          sx={{ mb: 2, background: "#fafbff", borderRadius: "10px" }}
         />
         <TextField
-          required
           label="Password"
+          name="password"
+          type={showPassword ? "text" : "password"}
+          value={form.password}
+          onChange={handleChange}
           fullWidth
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          sx={{ mb: 3 }}
+          required
+          sx={{ mb: 3, background: "#fafbff", borderRadius: "10px" }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={togglePasswordVisibility}
+                  edge="end"
+                  aria-label="toggle password visibility"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
         />
-        <Button variant="contained" type="submit" fullWidth size="large">
+        <Button
+          variant="contained"
+          type="submit"
+          fullWidth
+          sx={{
+            py: 1.5,
+            borderRadius: "20px",
+            background: "linear-gradient(90deg,#2575fc 0%,#6a11cb 100%)",
+            fontWeight: 600,
+            fontSize: "1.1rem",
+            textTransform: "none",
+            mb: 2,
+            boxShadow: "0 6px 20px rgba(37,117,252,0.15)",
+            "&:hover": {
+              background: "linear-gradient(90deg,#1b47ae 0%,#571e96 100%)",
+            },
+          }}
+        >
           Register
         </Button>
-        <Typography align="center" sx={{ mt: 2 }}>
-          Already registered? <Link to="/login">Login</Link>
+        <Typography align="center">
+          Already registered?{" "}
+          <MuiLink component={Link} to="/login" sx={{ color: "green" ,textDecoration:"none",ml:15}}>
+            Login
+          </MuiLink>
         </Typography>
       </form>
-    </Box>
+    </AuthLayout>
   );
 };
 
