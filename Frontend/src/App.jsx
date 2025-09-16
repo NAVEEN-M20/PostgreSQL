@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import { AppBar, Toolbar, Typography, Button, Box } from "@mui/material";
 import Welcome from "./components/Welcome";
 import Login from "./components/Login";
@@ -7,7 +7,8 @@ import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
 import NewTask from "./components/Newtask";
 import Chat from "./components/Chat";
-import { UserProvider } from "./UserProvider"; // Import context
+import { UserProvider } from "./components/UserProvider"; // Import context
+
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard" },
@@ -16,20 +17,67 @@ const navItems = [
   { label: "Home", path: "/" },
 ];
 
+// Separate component to manage layout and navbar visibility
+const Layout = ({ children }) => {
+  const location = useLocation();
+
+  const hideNavbarPaths = ["/", "/login", "/register"];
+  const showNavbar = !hideNavbarPaths.includes(location.pathname);
+
+  return (
+    <>
+      {showNavbar && (
+        <>
+          <AppBar position="fixed" sx={{ backgroundColor: "grey", boxShadow: "none" }}>
+            <Toolbar>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontStyle: "italic",
+                  fontWeight: 700,
+                  flexGrow: 1,
+                  letterSpacing: 2,
+                  color: "white",
+                }}
+              >
+                Task Portal
+              </Typography>
+
+              {navItems.map((item) => (
+                <Button
+                  key={item.path}
+                  component={Link}
+                  to={item.path}
+                  sx={{
+                    color: "white",
+                    mx: 1.5,
+                    "&:hover": {
+                      backgroundColor: "#64b5f6",
+                      color: "black",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Toolbar>
+          </AppBar>
+
+          {/* Spacer so content is not hidden behind fixed navbar */}
+          <Toolbar />
+        </>
+      )}
+
+      <Box>{children}</Box>
+    </>
+  );
+};
+
 const App = () => (
   <UserProvider>
     <BrowserRouter>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>Task Portal</Typography>
-          {navItems.map((item) => (
-            <Button color="inherit" component={Link} to={item.path} key={item.path}>
-              {item.label}
-            </Button>
-          ))}
-        </Toolbar>
-      </AppBar>
-      <Box mt={3}>
+      <Layout>
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
@@ -38,7 +86,7 @@ const App = () => (
           <Route path="/newtask" element={<NewTask />} />
           <Route path="/chat" element={<Chat />} />
         </Routes>
-      </Box>
+      </Layout>
     </BrowserRouter>
   </UserProvider>
 );
