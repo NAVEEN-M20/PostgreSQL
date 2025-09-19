@@ -50,7 +50,7 @@ const groupMessagesByDate = (messages) => {
   return grouped;
 };
 
-const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, socket }) => {
+const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, socket, height }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const messagesEndRef = useRef(null);
@@ -141,6 +141,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
         justifyContent: "center", 
         display: "flex",
         background: "#ece5dd",
+        height: height, // Use passed height
       }}
     >
       <Typography>Select a user to start chatting</Typography>
@@ -150,8 +151,9 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        height: height, // Use passed height instead of 100%
         background: "#ece5dd",
+        width: "100%",
       }}
     >
       {/* Header with AppBar for proper mobile navigation */}

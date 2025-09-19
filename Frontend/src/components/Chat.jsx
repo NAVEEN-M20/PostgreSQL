@@ -18,6 +18,10 @@ const Chat = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [socket, setSocket] = useState(null);
 
+  // Calculate height considering navbar (assuming navbar is around 64px)
+  const navbarHeight = 64;
+  const chatHeight = `calc(100vh - ${navbarHeight}px)`;
+
   // Initialize socket connection
   useEffect(() => {
     if (user && !socket) {
@@ -88,6 +92,7 @@ const Chat = () => {
 
   const handleBack = () => {
     setView("sidebar");
+    setSelectedUser(null);
   };
 
   const markAsRead = useCallback((userId) => {
@@ -101,7 +106,7 @@ const Chat = () => {
     <Box
       sx={{
         display: "flex",
-        height: "100%",
+        height: chatHeight, // Use calculated height instead of 100vh
         width: "100%",
         overflow: "hidden",
         background: "#ece5dd",
@@ -124,6 +129,7 @@ const Chat = () => {
           isMobile={isMobile}
           markAsRead={markAsRead}
           socket={socket}
+          height={chatHeight} // Pass height to ChatWindow
         />
       )}
     </Box>
