@@ -80,9 +80,34 @@ const io = new Server(server, {
     origin: allowedOrigins,
     credentials: true,
   },
+  path: "/socket.io/", // Explicitly set the path
 });
 
 const onlineUsers = {}; // userId -> socketId
+
+// Function to send unread counts to a user
+const sendUnreadCounts = async (userId) => {
+  try {
+    const result = await db.query(
+      `SELECT sender_id, COUNT(*) as count 
+       FROM messages 
+       WHERE receiver_id = $1 AND is_read = false 
+       GROUP BY sender_id`,
+      [userId]
+    );
+    
+    const unreadCounts = {};
+    result.rows.forEach(row => {
+      unreadCounts[row.sender_id] = parseInt(row.count);
+    });
+    
+    if (onlineUsers[userId]) {
+      io.to(onlineUsers[userId]).emit("unreadCounts", unreadCounts);
+    }
+  } catch (err) {
+    console.error("Error fetching unread counts:", err);
+  }
+};
 
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
@@ -90,6 +115,9 @@ io.on("connection", (socket) => {
   socket.on("register", (userId) => {
     onlineUsers[userId] = socket.id;
     console.log("✅ Registered user:", userId);
+    
+    // Send initial unread counts when user registers
+    sendUnreadCounts(userId);
   });
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
@@ -103,6 +131,8 @@ io.on("connection", (socket) => {
 
       if (onlineUsers[receiverId]) {
         io.to(onlineUsers[receiverId]).emit("receiveMessage", newMessage);
+        // Update unread counts for receiver
+        sendUnreadCounts(receiverId);
       }
 
       // ack to sender
@@ -110,6 +140,27 @@ io.on("connection", (socket) => {
     } catch (err) {
       console.error("❌ Error saving message:", err);
       socket.emit("error", { message: "Message save failed" });
+    }
+  });
+
+  // Add socket event for marking messages as read
+  socket.on("markAsRead", async ({ senderId, receiverId }) => {
+    try {
+      await db.query(
+        "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false",
+        [senderId, receiverId]
+      );
+      
+      // Notify the sender that their messages were read
+      if (onlineUsers[senderId]) {
+        io.to(onlineUsers[senderId]).emit("messagesRead", { readerId: receiverId });
+      }
+      
+      // Update unread counts for both users
+      sendUnreadCounts(receiverId);
+      sendUnreadCounts(senderId);
+    } catch (err) {
+      console.error("❌ Error marking messages as read:", err);
     }
   });
 
@@ -290,7 +341,7 @@ app.get("/api/messages/:otherUserId", async (req, res) => {
 
     const { otherUserId } = req.params;
     const result = await db.query(
-      "SELECT m.id, m.sender_id, m.receiver_id, m.message, m.created_at, " +
+      "SELECT m.id, m.sender_id, m.receiver_id, m.message, m.created_at, m.is_read, " +
         "s.name AS sender_name, r.name AS receiver_name " +
         "FROM messages m " +
         "JOIN users s ON m.sender_id = s.id " +
@@ -301,8 +352,59 @@ app.get("/api/messages/:otherUserId", async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching messages:", err);
     res.status(500).json({ error: "Error fetching messages" });
+  }
+});
+
+// Get unread message count for a specific user
+app.get("/api/messages/unread/:otherUserId", async (req, res) => {
+  try {
+    console.log("Unread messages endpoint hit for user:", req.user?.id, "other user:", req.params.otherUserId);
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+    const { otherUserId } = req.params;
+    
+    // Validate otherUserId is a number
+    if (isNaN(parseInt(otherUserId))) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+    
+    const result = await db.query(
+      "SELECT COUNT(*) FROM messages WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false",
+      [otherUserId, req.user.id]
+    );
+    
+    console.log("Unread count result:", result.rows[0].count);
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) {
+    console.error("Error fetching unread messages:", err);
+    res.status(500).json({ error: "Error fetching unread messages" });
+  }
+});
+
+// Mark messages as read from a specific user
+app.post("/api/messages/mark-read/:otherUserId", async (req, res) => {
+  try {
+    console.log("Mark as read endpoint hit for user:", req.user?.id, "other user:", req.params.otherUserId);
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+    const { otherUserId } = req.params;
+    const result = await db.query(
+      "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false RETURNING *",
+      [otherUserId, req.user.id]
+    );
+    
+    console.log("Marked as read:", result.rowCount, "messages");
+    
+    // Send updated unread counts via Socket.IO
+    sendUnreadCounts(req.user.id);
+    sendUnreadCounts(otherUserId);
+    
+    res.json({ success: true, message: "Messages marked as read", count: result.rowCount });
+  } catch (err) {
+    console.error("Error marking messages as read:", err);
+    res.status(500).json({ error: "Error marking messages as read" });
   }
 });
 

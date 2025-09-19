@@ -24,7 +24,10 @@ function Dashboard() {
   useEffect(() => {
     // Initialize socket connection
     if (!socket) {
-      socket = io(API_URL, { withCredentials: true });
+      socket = io(API_URL, { 
+        withCredentials: true,
+        path: "/socket.io/", // Add this line
+      });
     }
 
     const fetchDashboard = async () => {
