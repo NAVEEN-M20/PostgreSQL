@@ -11,16 +11,18 @@ html, body, #root {
   padding: 0;
   box-sizing: border-box;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden; /* Prevent default scrollbars */
 }
 
 /* Root flex container for welcome page */
 .welcome_page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(-45deg, #6a11cb, #2575fc, #6a11cb, #fc5c7d);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
+  overflow: hidden;
 }
 
 /* Main content container in welcome */
@@ -32,6 +34,7 @@ html, body, #root {
   align-items: center;
   padding: 48px 16px;
   text-align: center;
+  overflow: auto;
 }
 
 /* Welcome icon */
@@ -59,6 +62,7 @@ html, body, #root {
   margin-bottom: 40px;
   width: 100%;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 /* Welcome buttons */
@@ -67,7 +71,7 @@ html, body, #root {
   color: black !important;
   text-transform: none !important;
   box-shadow: 0 2px 6px rgba(0,0,0,0.12) !important;
-  width: 140px;
+  min-width: 140px;
 }
 
 .welcome_button:hover {
@@ -83,6 +87,7 @@ html, body, #root {
   padding: 12px 0;
   font-size: 0.9rem;
   width: 100%;
+  flex-shrink: 0;
 }
 
 /* Animation keyframes */
@@ -93,17 +98,19 @@ html, body, #root {
 }
 
 .auth-abs-root {
-  /* Absolute root so background image fills entire viewport */
-  position: relative;
+  /* Fixed root so it doesn't create scroll */
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
-  min-height: 100vh;
   overflow: hidden;
 }
 
 .auth-bg-image {
-  position: absolute;
-  inset: 0 0 0 0;
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
   z-index: 0;
@@ -117,10 +124,10 @@ html, body, #root {
 .auth-root {
   position: relative;
   display: flex;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
-  min-height: 100vh;
   z-index: 1;
+  overflow: hidden;
 }
 
 /* Gradient left panel, sharp edge */
@@ -137,23 +144,22 @@ html, body, #root {
   text-align: center;
   position: relative;
   z-index: 2;
-  padding: 0;
+  padding: 40px 20px;
+  overflow: auto;
 }
 
 .auth-left-inner {
   width: 100%;
-  height: 100%;
-  min-height: 70vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex: 1;
 }
 
 .auth-logo {
   font-size: 80px !important;
   margin-bottom: 22px;
-  margin-top: 28px;
 }
 
 .auth-welcome-title {
@@ -176,238 +182,149 @@ html, body, #root {
   max-width: 330px;
   color: #e6ebf3;
   margin: 33px 0 38px 0;
+  text-align: center;
 }
 
 .auth-footer {
   width: 100%;
-  position: absolute;
-  bottom: 16px;
-  left: 0;
   text-align: center;
   font-size: 0.99rem;
   color: #ddeeff;
   opacity: 0.85;
+  padding: 16px 0;
+  flex-shrink: 0;
 }
 
 .auth-right {
   flex: 1 1 60%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 1;
   background: transparent;
   position: relative;
+  padding: 40px 20px;
+  overflow: auto;
 }
 
 .auth-card {
-  min-width: 320px;
+  width: 100%;
   max-width: 440px;
   border-radius: 20px;
   box-shadow: 0 10px 36px rgba(37,117,252,0.08), 0 6px 20px rgba(0,0,0,0.12);
-  padding: 40px 38px 38px 38px;
+  padding: 40px 30px;
   background: #fff;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: auto;
 }
 
 /* Responsive for smaller screens */
 @media (max-width: 900px) {
   .auth-root {
     flex-direction: column;
+    height: 100vh;
+    overflow: auto;
   }
+  
   .auth-left,
   .auth-right {
     flex: unset;
     width: 100%;
     min-width: unset;
     border-radius: 0 !important;
-    padding: 30px 0;
+    padding: 30px 20px;
+    overflow: visible;
   }
+  
+  .auth-left {
+    min-height: 35vh;
+    border-radius: 0 0 40px 40px !important;
+    flex: 0 0 auto;
+  }
+  
+  .auth-right {
+    flex: 1;
+    padding: 20px;
+    justify-content: flex-start;
+  }
+  
   .auth-card {
-    margin: 20px auto;
+    margin: 20px 0;
     border-radius: 16px;
-    max-width: 96vw;
-    padding: 30px 12px;
+    max-width: 100%;
+    padding: 30px 20px;
+  }
+  
+  .auth-logo {
+    font-size: 60px !important;
+  }
+  
+  .auth-welcome-title {
+    font-size: 1.8rem;
+  }
+  
+  .auth-brand {
+    font-size: 2.2rem;
+  }
+  
+  .auth-desc {
+    font-size: 1rem;
+    max-width: 280px;
+    margin: 20px 0;
+  }
+  
+  .auth-footer {
+    position: relative;
+    bottom: 0;
+    margin-top: auto;
   }
 }
 
-
-/* Register + Login account page wrapper */
-.account_page {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-size: 1.2rem;
-  color: #333;
-  gap: 20px;
-  background-image: url("https://t3.ftcdn.net/jpg/03/55/60/70/360_F_355607062_zYMS8jaz4SfoykpWz5oViRVKL32IabTP.jpg");
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-
-/* Account page form */
-.login_form, .account_page form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  width: 350px;
-  max-width: 95vw;
-  padding: 32px 22px 26px 22px;
-  border: none;
-  border-radius: 20px;
-  box-shadow: 0 12px 38px rgba(34,34,54,0.13), 0 2px 8px rgba(60,0,30,0.03);
-  background: rgba(255,255,255,0.97);
-  font-size: 1rem;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-/* Login form specifically */
-.login form {
-  min-height: 400px;
-  height: auto;
-}
-
-/* MUI TextField inputs */
-.login_form .MuiTextField-root, .account_page form .MuiTextField-root {
-  background: #fafbff;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-/* MUI Buttons in forms */
-.login_form .MuiButton-root, .account_page form .MuiButton-root {
-  border-radius: 14px;
-  font-weight: 600;
-  padding: 13px 0;
-  font-size: 1.12rem;
-  letter-spacing: 0.03em;
-  text-transform: none;
-  background: linear-gradient(90deg,#2575fc 0%,#6a11cb 100%);
-  transition: background 0.2s;
-  color: #fff;
-  box-shadow: 0 4px 24px rgba(37,117,252,0.09);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.login_form .MuiButton-root:hover, .account_page form .MuiButton-root:hover {
-  background: linear-gradient(85deg,#1976d2 30%,#6a11cb 100%);
-  color: #fff;
-}
-
-/* Links in forms */
-.login_form a, .account_page form a {
-  font-style: normal;
-  text-decoration: none;
-  color: #1976d2;
-  font-weight: 600;
-  transition: color 0.12s;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.login_form a:hover, .account_page form a:hover {
-  text-decoration: underline;
-  color: #6a11cb;
-}
-
-/* Button-link class */
-.btn-link {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: -15px;
-}
-
-/* Alternate option container */
-.alternate_option {
-  display: flex;
-  justify-content: space-evenly;
-  align-items: center;
-  color: grey;
-}
-
-/* Paragraph in account_page */
-.account_page p {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 1.2rem;
-  margin: 0;
-}
-
-/* Dashboard styles */
-.dashboard_page {
-  height: 100vh;
-  width: 100vw;
-  background-color: lightblue;
-  background-image: url("https://www.transparenttextures.com/patterns/dark-mosaic.png");
-}
-
-.dashboard_top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 50px;
-  height: 100px;
-}
-
-.dashboard_top h1 {
-  font-size: 2rem;
-  color: white;
-}
-
-.dashboard_actions {
-  display: flex;
-  gap: 15px;
-}
-
-.dashboard_tasks {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 30px;
-  height: calc(100vh - 100px);
-  overflow-y: auto;
-}
-
-/* Newtask page */
-.newtask_page {
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: lightcoral;
-  background-image: url("https://www.transparenttextures.com/patterns/diagmonds.png");
-}
-
-.taskform-container {
-  max-width: 600px;
-  width: 90%;
-  padding: 30px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  margin: 0;
-}
-
-/* Chat page layout */
-.chat_page {
-  height: 100vh;
-  display: flex;
-  background: #f9f9f9;
-}
-
-.chat_sidebar {
-  width: 25%;
-  border-right: 1px solid #ddd;
-}
-
-.chat_window {
-  width: 75%;
-  display: flex;
-  flex-direction: column;
+/* Extra small devices */
+@media (max-width: 480px) {
+  .auth-left {
+    padding: 20px 15px;
+    min-height: 30vh;
+  }
+  
+  .auth-right {
+    padding: 15px;
+    justify-content: flex-start;
+  }
+  
+  .auth-card {
+    padding: 20px 15px;
+  }
+  
+  .auth-logo {
+    font-size: 50px !important;
+    margin-bottom: 15px;
+  }
+  
+  .auth-welcome-title {
+    font-size: 1.5rem;
+  }
+  
+  .auth-brand {
+    font-size: 1.8rem;
+  }
+  
+  .auth-desc {
+    font-size: 0.9rem;
+    max-width: 250px;
+    margin: 15px 0;
+  }
+  
+  /* Fix for the login/register links */
+  .MuiTypography-alignCenter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .MuiTypography-alignCenter .MuiLink-root {
+    margin-left: 0 !important;
+  }
 }
