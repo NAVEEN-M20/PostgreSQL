@@ -1,7 +1,7 @@
 import React, { memo, useCallback } from "react";
-import { Box, Typography, List, ListItemButton } from "@mui/material";
+import { Box, Typography, List, ListItemButton, Badge } from "@mui/material";
 
-const ChatSidebar = ({ users, onSelect, selectedUser, isMobile }) => {
+const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) => {
   const handleSelect = useCallback(
     (user) => onSelect(user),
     [onSelect]
@@ -59,25 +59,31 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile }) => {
                   py: 1,
                 }}
               >
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    background:
-                      "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontWeight: "bold",
-                    mr: 2,
-                    fontSize: "1.2rem",
-                  }}
+                <Badge
+                  color="error"
+                  badgeContent={unreadCounts[user.id] || 0}
+                  invisible={!unreadCounts[user.id] || unreadCounts[user.id] === 0}
+                  sx={{ mr: 2 }}
                 >
-                  {user.name.charAt(0).toUpperCase()}
-                </Box>
-                <Box sx={{ flexGrow: 1 }}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "50%",
+                      background:
+                        "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontWeight: "bold",
+                      fontSize: "1.2rem",
+                    }}
+                  >
+                    {user.name.charAt(0).toUpperCase()}
+                  </Box>
+                </Badge>
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography
                     sx={{
                       fontWeight: "bold",
@@ -86,6 +92,9 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile }) => {
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       display: "inline-block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {user.name || user.email}
@@ -93,7 +102,12 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile }) => {
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ mt: 0.5 }}
+                    sx={{ 
+                      mt: 0.5, 
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
                   >
                     {user.email}
                   </Typography>
