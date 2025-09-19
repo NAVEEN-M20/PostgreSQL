@@ -1,11 +1,9 @@
+// ChatSidebar.jsx
 import React, { memo, useCallback } from "react";
 import { Box, Typography, List, ListItemButton, Badge } from "@mui/material";
 
 const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) => {
-  const handleSelect = useCallback(
-    (user) => onSelect(user),
-    [onSelect]
-  );
+  const handleSelect = useCallback((user) => onSelect(user), [onSelect]);
 
   return (
     <Box
@@ -40,9 +38,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
       >
         <List sx={{ p: 0 }}>
           {users.length === 0 && (
-            <Typography sx={{ p: 2, color: "text.secondary" }}>
-              No users available
-            </Typography>
+            <Typography sx={{ p: 2, color: "text.secondary" }}>No users available</Typography>
           )}
           {users.map((user) => (
             <ListItemButton
@@ -70,8 +66,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                       width: 48,
                       height: 48,
                       borderRadius: "50%",
-                      background:
-                        "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                      background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -87,8 +82,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                   <Typography
                     sx={{
                       fontWeight: "bold",
-                      background:
-                        "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                      background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       display: "inline-block",
@@ -102,8 +96,8 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ 
-                      mt: 0.5, 
+                    sx={{
+                      mt: 0.5,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",

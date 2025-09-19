@@ -1,3 +1,4 @@
+// Chat.jsx
 import React, { useEffect, useState, useContext, useCallback } from "react";
 import { Box, useTheme, useMediaQuery } from "@mui/material";
 import ChatSidebar from "./ChatSidebar";
@@ -7,6 +8,8 @@ import { UserContext } from "./UserContext";
 import { io } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+const NAVBAR_HEIGHT = 64; // fixed navbar height
 
 const Chat = () => {
   const [users, setUsers] = useState([]);
@@ -18,14 +21,10 @@ const Chat = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [socket, setSocket] = useState(null);
 
-  // Calculate height considering navbar (assuming navbar is around 64px)
-  const navbarHeight = 64;
-  const chatHeight = `calc(100vh - ${navbarHeight}px)`;
-
   // Initialize socket connection
   useEffect(() => {
     if (user && !socket) {
-      const newSocket = io(API_URL, { 
+      const newSocket = io(API_URL, {
         withCredentials: true,
         path: "/socket.io/",
       });
@@ -51,13 +50,13 @@ const Chat = () => {
       setUsers([]);
       return;
     }
-    
+
     try {
       const res = await axios.get(`${API_URL}/api/users`, {
         withCredentials: true,
       });
       setUsers(res.data);
-      
+
       // Register with socket for real-time updates
       if (socket) {
         socket.emit("register", user.id);
@@ -74,18 +73,18 @@ const Chat = () => {
   const handleSelectUser = (user) => {
     setSelectedUser(user);
     if (isMobile) setView("chat");
-    
+
     // Reset unread count for this user
-    setUnreadCounts(prev => ({
+    setUnreadCounts((prev) => ({
       ...prev,
-      [user.id]: 0
+      [user.id]: 0,
     }));
-    
+
     // Mark messages as read on server
     if (socket) {
       socket.emit("markAsRead", {
         senderId: user.id,
-        receiverId: user.id
+        receiverId: user.id,
       });
     }
   };
@@ -96,9 +95,9 @@ const Chat = () => {
   };
 
   const markAsRead = useCallback((userId) => {
-    setUnreadCounts(prev => ({
+    setUnreadCounts((prev) => ({
       ...prev,
-      [userId]: 0
+      [userId]: 0,
     }));
   }, []);
 
@@ -106,7 +105,9 @@ const Chat = () => {
     <Box
       sx={{
         display: "flex",
-        height: chatHeight, // Use calculated height instead of 100vh
+        flexDirection: "row",
+        height: `calc(100% - ${NAVBAR_HEIGHT}px)`, // fill parent minus navbar
+        marginTop: `${NAVBAR_HEIGHT}px`, // push content below navbar
         width: "100%",
         overflow: "hidden",
         background: "#ece5dd",
@@ -129,7 +130,7 @@ const Chat = () => {
           isMobile={isMobile}
           markAsRead={markAsRead}
           socket={socket}
-          height={chatHeight} // Pass height to ChatWindow
+          height="100%" // full height of remaining container
         />
       )}
     </Box>

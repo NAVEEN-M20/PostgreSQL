@@ -1,3 +1,4 @@
+// ChatWindow.jsx
 import React, { useEffect, useState, useRef, memo } from "react";
 import {
   Box,
@@ -57,7 +58,6 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
   const theme = useTheme();
   const isMobileView = useMediaQuery(theme.breakpoints.down("md"));
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -66,26 +66,25 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
     scrollToBottom();
   }, [messages]);
 
-  // Listen for new messages
   useEffect(() => {
     if (socket) {
       const handleReceiveMessage = (msg) => {
-        // Only add message if it's for the current conversation
-        if ((msg.sender_id === otherUser?.id && msg.receiver_id === currentUser?.id) ||
-            (msg.sender_id === currentUser?.id && msg.receiver_id === otherUser?.id)) {
-          setMessages(prev => [...prev, msg]);
+        if (
+          (msg.sender_id === otherUser?.id && msg.receiver_id === currentUser?.id) ||
+          (msg.sender_id === currentUser?.id && msg.receiver_id === otherUser?.id)
+        ) {
+          setMessages((prev) => [...prev, msg]);
         }
       };
 
       socket.on("receiveMessage", handleReceiveMessage);
-      
+
       return () => {
         socket.off("receiveMessage", handleReceiveMessage);
       };
     }
   }, [socket, currentUser, otherUser]);
 
-  // Fetch messages when otherUser changes
   useEffect(() => {
     const fetchMessages = async () => {
       if (!otherUser || !currentUser) {
@@ -93,18 +92,16 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
         return;
       }
       try {
-        const res = await axios.get(
-          `${API_URL}/api/messages/${otherUser.id}`,
-          { withCredentials: true }
-        );
+        const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, {
+          withCredentials: true,
+        });
         setMessages(res.data || []);
-        
-        // Mark messages as read when opening a conversation
+
         if (res.data && res.data.length > 0 && markAsRead && socket) {
           markAsRead(otherUser.id);
           socket.emit("markAsRead", {
             senderId: otherUser.id,
-            receiverId: currentUser.id
+            receiverId: currentUser.id,
           });
         }
       } catch (err) {
@@ -124,8 +121,9 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
     setText("");
   };
 
+  // Restored handleKeyPress as a separate function as originally defined
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -135,13 +133,13 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
 
   return !otherUser ? (
     <Box
-      sx={{ 
-        flex: 1, 
-        alignItems: "center", 
-        justifyContent: "center", 
+      sx={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
         display: "flex",
         background: "#ece5dd",
-        height: height, // Use passed height
+        height: height,
       }}
     >
       <Typography>Select a user to start chatting</Typography>
@@ -151,27 +149,22 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: height, // Use passed height instead of 100%
+        height: height,
         background: "#ece5dd",
         width: "100%",
       }}
     >
-      {/* Header with AppBar for proper mobile navigation */}
-      <AppBar 
-        position="static" 
+      <AppBar
+        position="static"
         elevation={1}
-        sx={{ 
+        sx={{
           backgroundColor: "white",
           color: "text.primary",
         }}
       >
         <Toolbar>
           {(isMobile || isMobileView) && (
-            <IconButton
-              edge="start"
-              onClick={onBack}
-              sx={{ mr: 2, color: "primary.main" }}
-            >
+            <IconButton edge="start" onClick={onBack} sx={{ mr: 2, color: "primary.main" }}>
               <ArrowBackIcon />
             </IconButton>
           )}
@@ -206,7 +199,6 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
         </Toolbar>
       </AppBar>
 
-      {/* Messages */}
       <Box
         sx={{
           flex: 1,
@@ -220,10 +212,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
         {groupedMessages.map((item) => {
           if (item.type === "date") {
             return (
-              <Box
-                key={item.id}
-                sx={{ display: "flex", justifyContent: "center", my: 2 }}
-              >
+              <Box key={item.id} sx={{ display: "flex", justifyContent: "center", my: 2 }}>
                 <Box
                   sx={{
                     backgroundColor: "rgba(0, 0, 0, 0.1)",
@@ -251,11 +240,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
                 display: "flex",
                 height: "auto",
                 flexDirection: "column",
-                alignItems: isTaskCompleted
-                  ? "center"
-                  : mine
-                  ? "flex-end"
-                  : "flex-start",
+                alignItems: isTaskCompleted ? "center" : mine ? "flex-end" : "flex-start",
                 mb: 1.5,
               }}
             >
@@ -270,18 +255,12 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
                   color: isTaskCompleted ? "white" : mine ? "white" : "black",
                   px: 2,
                   py: 1,
-                  borderRadius: isTaskCompleted
-                    ? "16px"
-                    : mine
-                    ? "16px 0 16px 16px"
-                    : "0 16px 16px 16px",
+                  borderRadius: isTaskCompleted ? "16px" : mine ? "16px 0 16px 16px" : "0 16px 16px 16px",
                   boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
                   wordBreak: "break-word",
                 }}
               >
-                <Typography variant="body1">
-                  {m.message || m.content}
-                </Typography>
+                <Typography variant="body1">{m.message || m.content}</Typography>
                 {!isTaskCompleted && (
                   <Typography
                     variant="caption"
@@ -307,7 +286,6 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
         <div ref={messagesEndRef} />
       </Box>
 
-      {/* Input */}
       <Box
         sx={{
           display: "flex",
@@ -325,7 +303,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
           maxRows={4}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyPress}
+          onKeyDown={handleKeyPress} // Use restored handleKeyPress here
           sx={{
             background: "#fff",
             borderRadius: 2,
