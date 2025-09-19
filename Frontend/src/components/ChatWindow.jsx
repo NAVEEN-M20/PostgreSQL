@@ -249,6 +249,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
               key={m.id}
               sx={{
                 display: "flex",
+                height: "auto",
                 flexDirection: "column",
                 alignItems: isTaskCompleted
                   ? "center"
