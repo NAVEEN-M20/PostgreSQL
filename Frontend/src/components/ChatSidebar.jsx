@@ -1,33 +1,110 @@
-import React from "react";
-import { List, ListItemButton, ListItemText, Typography, Divider, ListItemIcon } from "@mui/material";
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import React, { memo, useCallback } from "react";
+import { Box, Typography, List, ListItemButton } from "@mui/material";
 
-const ChatSidebar = ({ users, onSelect, selectedUser }) => {
+const ChatSidebar = ({ users, onSelect, selectedUser, isMobile }) => {
+  const handleSelect = useCallback(
+    (user) => onSelect(user),
+    [onSelect]
+  );
+
   return (
-    <>
-      <Typography variant="h6" sx={{ p: 2 }}>
+    <Box
+      sx={{
+        width: isMobile ? "100%" : "30%",
+        minWidth: isMobile ? "100%" : 280,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        borderRight: isMobile ? "none" : "1.5px solid #dadada",
+        background: "#fff",
+      }}
+    >
+      <Typography
+        variant="h6"
+        sx={{
+          p: 2,
+          fontWeight: "bolder",
+          borderBottom: "1.5px solid #dadada",
+        }}
+      >
         Chats
       </Typography>
-      <Divider />
-      <List sx={{ flex: 1, overflowY: "auto" }}>
-        {users.length === 0 && (
-          <Typography sx={{ p: 2, color: "text.secondary" }}>No users available</Typography>
-        )}
-        {users.map((user) => (
-          <ListItemButton
-            key={user.id}
-            selected={selectedUser?.id === user.id}
-            onClick={() => onSelect(user)}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              <AccountCircleIcon fontSize="medium" />
-            </ListItemIcon>
-            <ListItemText primary={user.name || user.email} secondary={user.email} />
-          </ListItemButton>
-        ))}
-      </List>
-    </>
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          scrollbarWidth: "none",
+          "&::-webkit-scrollbar": { display: "none" },
+          minHeight: 0,
+        }}
+      >
+        <List sx={{ p: 0 }}>
+          {users.length === 0 && (
+            <Typography sx={{ p: 2, color: "text.secondary" }}>
+              No users available
+            </Typography>
+          )}
+          {users.map((user) => (
+            <ListItemButton
+              key={user.id}
+              selected={selectedUser?.id === user.id}
+              onClick={() => handleSelect(user)}
+              sx={{ borderRadius: 0, borderBottom: "1px solid #f0f0f0" }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  width: "100%",
+                  py: 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    background:
+                      "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontWeight: "bold",
+                    mr: 2,
+                    fontSize: "1.2rem",
+                  }}
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </Box>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography
+                    sx={{
+                      fontWeight: "bold",
+                      background:
+                        "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      display: "inline-block",
+                    }}
+                  >
+                    {user.name || user.email}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    {user.email}
+                  </Typography>
+                </Box>
+              </Box>
+            </ListItemButton>
+          ))}
+        </List>
+      </Box>
+    </Box>
   );
 };
 
-export default ChatSidebar;
+export default memo(ChatSidebar);

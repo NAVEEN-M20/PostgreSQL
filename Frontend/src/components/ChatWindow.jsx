@@ -1,46 +1,95 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Box, Typography, TextField, Button, Paper } from "@mui/material";
+import React, { useEffect, useState, useRef, memo } from "react";
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Paper,
+  IconButton,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import SendIcon from "@mui/icons-material/Send";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { io } from "socket.io-client";
 import axios from "axios";
+
 const API_URL = import.meta.env.VITE_API_URL;
+const socketRef = { current: null };
 
-let socket;
+// Format dates WhatsApp-style
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
-const ChatWindow = ({ currentUser, otherUser }) => {
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+// Group messages by date
+const groupMessagesByDate = (messages) => {
+  const grouped = [];
+  let currentDate = null;
+
+  messages.forEach((m) => {
+    const msgDate = new Date(m.created_at || new Date()).toDateString();
+    if (msgDate !== currentDate) {
+      currentDate = msgDate;
+      grouped.push({ type: "date", date: m.created_at || new Date(), id: `date-${currentDate}` });
+    }
+    grouped.push(m);
+  });
+
+  return grouped;
+};
+
+const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const messagesRef = useRef(null);
+  const theme = useTheme();
+  const isMobileView = useMediaQuery(theme.breakpoints.down("md"));
 
+  // Init socket once
   useEffect(() => {
-    // create socket once
-    if (!socket) {
-      socket = io(API_URL, { withCredentials: true });
-      socket.on("receiveMessage", (msg) => setMessages((prev) => [...prev, msg]));
-      socket.on("messageSent", (msg) => setMessages((prev) => [...prev, msg]));
-      socket.on("connect_error", (err) => {
-        console.error("Socket connect error:", err);
-      });
+    if (!socketRef.current) {
+      socketRef.current = io(API_URL, { withCredentials: true });
+
+      socketRef.current.on("receiveMessage", (msg) =>
+        setMessages((prev) => [...prev, msg])
+      );
+      socketRef.current.on("messageSent", (msg) =>
+        setMessages((prev) => [...prev, msg])
+      );
+      socketRef.current.on("connect_error", (err) =>
+        console.error("Socket error:", err)
+      );
     }
-    // cleanup listeners on unmount (not removing socket itself to reuse)
     return () => {
-      if (socket) {
-        socket.off("receiveMessage");
-        socket.off("messageSent");
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, []);
 
+  // Register user with socket
   useEffect(() => {
-    // when logged-in user (currentUser) becomes available, register with socket
-    if (currentUser && socket && socket.connected) {
-      socket.emit("register", currentUser.id);
-    } else if (currentUser && socket && !socket.connected) {
-      // try to connect then register
-      socket.connect();
-      socket.emit("register", currentUser.id);
+    if (currentUser && socketRef.current) {
+      if (!socketRef.current.connected) socketRef.current.connect();
+      socketRef.current.emit("register", currentUser.id);
     }
   }, [currentUser]);
 
+  // Fetch messages when otherUser changes
   useEffect(() => {
     const fetchMessages = async () => {
       if (!otherUser || !currentUser) {
@@ -48,9 +97,10 @@ const ChatWindow = ({ currentUser, otherUser }) => {
         return;
       }
       try {
-        const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, {
-          withCredentials: true,
-        });
+        const res = await axios.get(
+          `${API_URL}/api/messages/${otherUser.id}`,
+          { withCredentials: true }
+        );
         setMessages(res.data || []);
       } catch (err) {
         console.error("Error fetching messages:", err);
@@ -59,6 +109,7 @@ const ChatWindow = ({ currentUser, otherUser }) => {
     fetchMessages();
   }, [otherUser, currentUser]);
 
+  // Auto-scroll
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -67,7 +118,7 @@ const ChatWindow = ({ currentUser, otherUser }) => {
 
   const sendMessage = () => {
     if (!text.trim() || !otherUser || !currentUser) return;
-    socket.emit("sendMessage", {
+    socketRef.current.emit("sendMessage", {
       senderId: currentUser.id,
       receiverId: otherUser.id,
       message: text,
@@ -75,51 +126,211 @@ const ChatWindow = ({ currentUser, otherUser }) => {
     setText("");
   };
 
+  const groupedMessages = groupMessagesByDate(messages);
+
   return !otherUser ? (
-    <Typography>Select a user to start chatting</Typography>
+    <Box
+      sx={{ flex: 1, alignItems: "center", justifyContent: "center", display: "flex" }}
+    >
+      <Typography>Select a user to start chatting</Typography>
+    </Box>
   ) : (
-    <Paper sx={{ p: 2, height: 480, display: "flex", flexDirection: "column" }}>
-      <Typography variant="h6">{otherUser.name} ({otherUser.email})</Typography>
+    <Box
+      sx={{
+        flex: 1,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        background: "#ece5dd",
+        minWidth: 0,
+      }}
+    >
+      {/* Header */}
+      <Paper
+        elevation={2}
+        sx={{
+          p: 2,
+          borderRadius: 0,
+          boxShadow: "none",
+          background: "#fff",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {(isMobile || isMobileView) && (
+          <IconButton onClick={onBack} sx={{ mr: 1 }}>
+            <ArrowBackIcon />
+          </IconButton>
+        )}
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: "bold",
+            background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            display: "inline-block",
+          }}
+        >
+          {otherUser?.name}
+        </Typography>
+      </Paper>
+
+      {/* Messages */}
       <Box
         ref={messagesRef}
         sx={{
           flex: 1,
           overflowY: "auto",
-          mt: 1,
-          mb: 2,
-          backgroundColor: "#fafafa",
-          borderRadius: 1,
-          p: 1,
+          p: 2,
+          background: "#f7f7f7",
+          minHeight: 0,
+          scrollbarWidth: "none",
+          "&::-webkit-scrollbar": { display: "none" },
         }}
       >
-        {messages.map((m, i) => {
-          const mine = m.sender_id === currentUser?.id || m.senderId === currentUser?.id;
+        {groupedMessages.map((item) => {
+          if (item.type === "date") {
+            return (
+              <Box
+                key={item.id}
+                sx={{ display: "flex", justifyContent: "center", my: 2 }}
+              >
+                <Box
+                  sx={{
+                    backgroundColor: "rgba(0, 0, 0, 0.1)",
+                    borderRadius: "20px",
+                    px: 2,
+                    py: 0.5,
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                    {formatDate(item.date)}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          }
+
+          const m = item;
+          const mine =
+            m.sender_id === currentUser?.id || m.senderId === currentUser?.id;
+          const isTaskCompleted =
+            m.message && m.message.includes("completed!!");
+
           return (
-            <Box key={m.id || i} textAlign={mine ? "right" : "left"} mb={2}>
-              <Typography variant="body2">{m.message || m.content}</Typography>
-              <Typography variant="caption" color="textSecondary">
-                {mine ? currentUser?.name : otherUser?.name} — {m.created_at ? new Date(m.created_at).toLocaleTimeString() : ""}
-              </Typography>
+            <Box
+              key={m.id}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: isTaskCompleted
+                  ? "center"
+                  : mine
+                  ? "flex-end"
+                  : "flex-start",
+                mb: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  maxWidth: "70%",
+                  bgcolor: isTaskCompleted
+                    ? "linear-gradient(90deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%)"
+                    : mine
+                    ? "#6a11cb"
+                    : "#fff",
+                  color: isTaskCompleted ? "white" : mine ? "white" : "black",
+                  px: 2,
+                  py: 1,
+                  borderRadius: isTaskCompleted
+                    ? "16px"
+                    : mine
+                    ? "16px 0 16px 16px"
+                    : "0 16px 16px 16px",
+                  boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
+                  wordBreak: "break-word",
+                }}
+              >
+                <Typography variant="body1">
+                  {m.message || m.content}
+                </Typography>
+                {!isTaskCompleted && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: isTaskCompleted ? "#e0e0e0" : "#999",
+                      display: "block",
+                      mt: 0.5,
+                    }}
+                  >
+                    {mine ? currentUser?.name : otherUser?.name} •{" "}
+                    {m.created_at
+                      ? new Date(m.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </Typography>
+                )}
+              </Box>
             </Box>
           );
         })}
       </Box>
-      <TextField
-        label="Type a message"
-        multiline
-        fullWidth
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) =>
-          e.key === "Enter" && !e.shiftKey ? (e.preventDefault(), sendMessage()) : null
-        }
-        sx={{ mt: 1 }}
-      />
-      <Button onClick={sendMessage} sx={{ minWidth: 90, mt: 1, alignSelf: "flex-end" }} variant="contained">
-        Send
-      </Button>
-    </Paper>
+
+      {/* Input */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          p: 2,
+          background: "#f0f0f0",
+          borderTop: "1px solid #ddd",
+        }}
+      >
+        <TextField
+          placeholder="Type a message"
+          multiline
+          fullWidth
+          maxRows={4}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) =>
+            e.key === "Enter" && !e.shiftKey
+              ? (e.preventDefault(), sendMessage())
+              : null
+          }
+          sx={{
+            background: "#fff",
+            borderRadius: 2,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            "& .MuiOutlinedInput-root": { borderRadius: 24 },
+          }}
+        />
+        <Button
+          onClick={sendMessage}
+          variant="contained"
+          sx={{
+            minWidth: 48,
+            minHeight: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+            "&:hover": {
+              background:
+                "linear-gradient(90deg, #1b47ae 0%, #571e96 100%)",
+            },
+            borderRadius: "50%",
+          }}
+        >
+          <SendIcon sx={{ color: "white", fontSize: 20 }} />
+        </Button>
+      </Box>
+    </Box>
   );
 };
 
-export default ChatWindow;
+export default memo(ChatWindow);
