@@ -3,11 +3,12 @@ import {
   Box,
   Typography,
   TextField,
-  Button,
   Paper,
   IconButton,
   useMediaQuery,
   useTheme,
+  AppBar,
+  Toolbar,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -147,61 +148,61 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
   ) : (
     <Box
       sx={{
-        flex: 1,
-        height: "100%",
         display: "flex",
         flexDirection: "column",
+        height: "100%",
         background: "#ece5dd",
-        minWidth: 0,
       }}
     >
-      {/* Header */}
-      <Paper
-        elevation={2}
-        sx={{
-          p: 2,
-          borderRadius: 0,
-          boxShadow: "none",
-          background: "#fff",
-          display: "flex",
-          alignItems: "center",
+      {/* Header with AppBar for proper mobile navigation */}
+      <AppBar 
+        position="static" 
+        elevation={1}
+        sx={{ 
+          backgroundColor: "white",
+          color: "text.primary",
         }}
       >
-        {(isMobile || isMobileView) && (
-          <IconButton onClick={onBack} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
-          </IconButton>
-        )}
-        <Box
-          sx={{
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
-            background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: "bold",
-            mr: 2,
-            fontSize: "1rem",
-          }}
-        >
-          {otherUser?.name?.charAt(0).toUpperCase()}
-        </Box>
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: "bold",
-            background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            display: "inline-block",
-          }}
-        >
-          {otherUser?.name}
-        </Typography>
-      </Paper>
+        <Toolbar>
+          {(isMobile || isMobileView) && (
+            <IconButton
+              edge="start"
+              onClick={onBack}
+              sx={{ mr: 2, color: "primary.main" }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+          )}
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "white",
+              fontWeight: "bold",
+              mr: 2,
+              fontSize: "1rem",
+            }}
+          >
+            {otherUser?.name?.charAt(0).toUpperCase()}
+          </Box>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: "bold",
+              background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            {otherUser?.name}
+          </Typography>
+        </Toolbar>
+      </AppBar>
 
       {/* Messages */}
       <Box
@@ -210,7 +211,6 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
           overflowY: "auto",
           p: 2,
           background: "inherit",
-          minHeight: 0,
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
         }}
@@ -325,7 +325,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
           onKeyDown={handleKeyPress}
           sx={{
             background: "#fff",
-            borderRadius: 24,
+            borderRadius: 2,
             boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             "& .MuiOutlinedInput-root": { borderRadius: 24 },
           }}

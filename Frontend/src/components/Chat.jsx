@@ -7,8 +7,6 @@ import { UserContext } from "./UserContext";
 import { io } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const NAVBAR_HEIGHT = 64; 
-let socket;
 
 const Chat = () => {
   const [users, setUsers] = useState([]);
@@ -18,30 +16,30 @@ const Chat = () => {
   const { user } = useContext(UserContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [socket, setSocket] = useState(null);
 
   // Initialize socket connection
   useEffect(() => {
-    if (!socket && user) {
-      socket = io(API_URL, { 
+    if (user && !socket) {
+      const newSocket = io(API_URL, { 
         withCredentials: true,
         path: "/socket.io/",
       });
 
-      socket.on("unreadCounts", (counts) => {
+      newSocket.on("unreadCounts", (counts) => {
         setUnreadCounts(counts);
       });
 
-      socket.on("connect_error", (err) => {
+      newSocket.on("connect_error", (err) => {
         console.error("Socket connection error:", err);
       });
-    }
 
-    return () => {
-      if (socket) {
-        socket.disconnect();
-        socket = null;
-      }
-    };
+      setSocket(newSocket);
+
+      return () => {
+        newSocket.disconnect();
+      };
+    }
   }, [user]);
 
   const fetchUsers = useCallback(async () => {
@@ -63,7 +61,7 @@ const Chat = () => {
     } catch (err) {
       console.error("Error fetching users:", err);
     }
-  }, [user]);
+  }, [user, socket]);
 
   useEffect(() => {
     fetchUsers();
@@ -83,7 +81,7 @@ const Chat = () => {
     if (socket) {
       socket.emit("markAsRead", {
         senderId: user.id,
-        receiverId: user.id // Current user is the receiver
+        receiverId: user.id
       });
     }
   };
@@ -103,11 +101,8 @@ const Chat = () => {
     <Box
       sx={{
         display: "flex",
-        position: "absolute",
-        top: NAVBAR_HEIGHT,
-        left: 0,
-        height: `calc(100vh - ${NAVBAR_HEIGHT}px)`,
-        width: "100vw",
+        height: "100%",
+        width: "100%",
         overflow: "hidden",
         background: "#ece5dd",
       }}
