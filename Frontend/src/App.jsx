@@ -4,7 +4,7 @@ import Welcome from "./components/Welcome"
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
-import NewTask from "./components/NewTask";
+import NewTask from "./components/Newtask";
 import Chat from "./components/Chat";
 import { UserProvider } from "./components/UserProvider";
 import Navbar from "./components/NavBar"
