@@ -1,21 +1,21 @@
-// ChatWindow.jsx
 import React, { useEffect, useState, useRef, memo } from "react";
 import {
   Box,
   Typography,
   TextField,
+  Button,
   Paper,
   IconButton,
   useMediaQuery,
   useTheme,
-  AppBar,
-  Toolbar,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { io } from "socket.io-client";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
+const socketRef = { current: null };
 
 // Format dates WhatsApp-style
 const formatDate = (dateString) => {
@@ -51,40 +51,45 @@ const groupMessagesByDate = (messages) => {
   return grouped;
 };
 
-const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, socket, height }) => {
+const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
-  const messagesEndRef = useRef(null);
+  const messagesRef = useRef(null);
   const theme = useTheme();
   const isMobileView = useMediaQuery(theme.breakpoints.down("md"));
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
+  // Init socket once
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!socketRef.current) {
+      socketRef.current = io(API_URL, { withCredentials: true });
 
-  useEffect(() => {
-    if (socket) {
-      const handleReceiveMessage = (msg) => {
-        if (
-          (msg.sender_id === otherUser?.id && msg.receiver_id === currentUser?.id) ||
-          (msg.sender_id === currentUser?.id && msg.receiver_id === otherUser?.id)
-        ) {
-          setMessages((prev) => [...prev, msg]);
-        }
-      };
-
-      socket.on("receiveMessage", handleReceiveMessage);
-
-      return () => {
-        socket.off("receiveMessage", handleReceiveMessage);
-      };
+      socketRef.current.on("receiveMessage", (msg) =>
+        setMessages((prev) => [...prev, msg])
+      );
+      socketRef.current.on("messageSent", (msg) =>
+        setMessages((prev) => [...prev, msg])
+      );
+      socketRef.current.on("connect_error", (err) =>
+        console.error("Socket error:", err)
+      );
     }
-  }, [socket, currentUser, otherUser]);
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
 
+  // Register user with socket
+  useEffect(() => {
+    if (currentUser && socketRef.current) {
+      if (!socketRef.current.connected) socketRef.current.connect();
+      socketRef.current.emit("register", currentUser.id);
+    }
+  }, [currentUser]);
+
+  // Fetch messages when otherUser changes
   useEffect(() => {
     const fetchMessages = async () => {
       if (!otherUser || !currentUser) {
@@ -92,28 +97,28 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
         return;
       }
       try {
-        const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, {
-          withCredentials: true,
-        });
+        const res = await axios.get(
+          `${API_URL}/api/messages/${otherUser.id}`,
+          { withCredentials: true }
+        );
         setMessages(res.data || []);
-
-        if (res.data && res.data.length > 0 && markAsRead && socket) {
-          markAsRead(otherUser.id);
-          socket.emit("markAsRead", {
-            senderId: otherUser.id,
-            receiverId: currentUser.id,
-          });
-        }
       } catch (err) {
         console.error("Error fetching messages:", err);
       }
     };
     fetchMessages();
-  }, [otherUser, currentUser, markAsRead, socket]);
+  }, [otherUser, currentUser]);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const sendMessage = () => {
-    if (!text.trim() || !otherUser || !currentUser || !socket) return;
-    socket.emit("sendMessage", {
+    if (!text.trim() || !otherUser || !currentUser) return;
+    socketRef.current.emit("sendMessage", {
       senderId: currentUser.id,
       receiverId: otherUser.id,
       message: text,
@@ -121,90 +126,82 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
     setText("");
   };
 
-  // Restored handleKeyPress as a separate function as originally defined
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
   const groupedMessages = groupMessagesByDate(messages);
 
   return !otherUser ? (
     <Box
-      sx={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        display: "flex",
-        background: "#ece5dd",
-        height: height,
-      }}
+      sx={{ flex: 1, alignItems: "center", justifyContent: "center", display: "flex" }}
     >
       <Typography>Select a user to start chatting</Typography>
     </Box>
   ) : (
     <Box
       sx={{
+        flex: 1,
+        height: "100%",
         display: "flex",
         flexDirection: "column",
-        height: height,
         background: "#ece5dd",
-        width: "100%",
+        minWidth: 0,
       }}
     >
-      <AppBar
-        position="static"
-        elevation={1}
+      {/* Header */}
+      <Paper
+        elevation={2}
         sx={{
-          backgroundColor: "white",
-          color: "text.primary",
+          p: 2,
+          borderRadius: 0,
+          boxShadow: "none",
+          background: "#fff",
+          display: "flex",
+          alignItems: "center",
         }}
       >
-        <Toolbar>
-          {(isMobile || isMobileView) && (
-            <IconButton edge="start" onClick={onBack} sx={{ mr: 2, color: "primary.main" }}>
-              <ArrowBackIcon />
-            </IconButton>
-          )}
-          <Box
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
-              fontWeight: "bold",
-              mr: 2,
-              fontSize: "1rem",
-            }}
-          >
-            {otherUser?.name?.charAt(0).toUpperCase()}
-          </Box>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: "bold",
-              background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            {otherUser?.name}
-          </Typography>
-        </Toolbar>
-      </AppBar>
+        {(isMobile || isMobileView) && (
+          <IconButton onClick={onBack} sx={{ mr: 1 }}>
+            <ArrowBackIcon />
+          </IconButton>
+        )}
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: "50%",
+            background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            fontWeight: "bold",
+            mr: 2,
+            fontSize: "1rem",
+          }}
+        >
+          {otherUser?.name?.charAt(0).toUpperCase()}
+        </Box>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: "bold",
+            background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            display: "inline-block",
+          }}
+        >
+          {otherUser?.name}
+        </Typography>
+      </Paper>
 
+      {/* Messages */}
       <Box
+        ref={messagesRef}
         sx={{
           flex: 1,
           overflowY: "auto",
           p: 2,
-          background: "inherit",
+          background: "#f7f7f7",
+          minHeight: 0,
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
         }}
@@ -212,7 +209,10 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
         {groupedMessages.map((item) => {
           if (item.type === "date") {
             return (
-              <Box key={item.id} sx={{ display: "flex", justifyContent: "center", my: 2 }}>
+              <Box
+                key={item.id}
+                sx={{ display: "flex", justifyContent: "center", my: 2 }}
+              >
                 <Box
                   sx={{
                     backgroundColor: "rgba(0, 0, 0, 0.1)",
@@ -230,47 +230,58 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
           }
 
           const m = item;
-          const mine = m.sender_id === currentUser?.id;
-          const isTaskCompleted = m.message && m.message.includes("completed!!");
+          const mine =
+            m.sender_id === currentUser?.id || m.senderId === currentUser?.id;
+          const isTaskCompleted =
+            m.message && m.message.includes("completed!!");
 
           return (
             <Box
               key={m.id}
               sx={{
                 display: "flex",
-                height: "auto",
                 flexDirection: "column",
-                alignItems: isTaskCompleted ? "center" : mine ? "flex-end" : "flex-start",
+                alignItems: isTaskCompleted
+                  ? "center"
+                  : mine
+                  ? "flex-end"
+                  : "flex-start",
                 mb: 1.5,
               }}
             >
               <Box
                 sx={{
                   maxWidth: "70%",
-                  background: isTaskCompleted
+                  bgcolor: isTaskCompleted
                     ? "linear-gradient(90deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%)"
                     : mine
-                    ? "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)"
+                    ? "#6a11cb"
                     : "#fff",
                   color: isTaskCompleted ? "white" : mine ? "white" : "black",
                   px: 2,
                   py: 1,
-                  borderRadius: isTaskCompleted ? "16px" : mine ? "16px 0 16px 16px" : "0 16px 16px 16px",
+                  borderRadius: isTaskCompleted
+                    ? "16px"
+                    : mine
+                    ? "16px 0 16px 16px"
+                    : "0 16px 16px 16px",
                   boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
                   wordBreak: "break-word",
                 }}
               >
-                <Typography variant="body1">{m.message || m.content}</Typography>
+                <Typography variant="body1">
+                  {m.message || m.content}
+                </Typography>
                 {!isTaskCompleted && (
                   <Typography
                     variant="caption"
                     sx={{
-                      color: isTaskCompleted ? "#e0e0e0" : mine ? "rgba(255,255,255,0.7)" : "#999",
+                      color: isTaskCompleted ? "#e0e0e0" : "#999",
                       display: "block",
                       mt: 0.5,
-                      textAlign: "right",
                     }}
                   >
+                    {mine ? currentUser?.name : otherUser?.name} •{" "}
                     {m.created_at
                       ? new Date(m.created_at).toLocaleTimeString([], {
                           hour: "2-digit",
@@ -283,9 +294,9 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
             </Box>
           );
         })}
-        <div ref={messagesEndRef} />
       </Box>
 
+      {/* Input */}
       <Box
         sx={{
           display: "flex",
@@ -303,7 +314,11 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
           maxRows={4}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyPress} // Use restored handleKeyPress here
+          onKeyDown={(e) =>
+            e.key === "Enter" && !e.shiftKey
+              ? (e.preventDefault(), sendMessage())
+              : null
+          }
           sx={{
             background: "#fff",
             borderRadius: 2,
@@ -311,25 +326,25 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, markAsRead, sock
             "& .MuiOutlinedInput-root": { borderRadius: 24 },
           }}
         />
-        <IconButton
+        <Button
           onClick={sendMessage}
-          disabled={!text.trim()}
+          variant="contained"
           sx={{
             minWidth: 48,
             minHeight: 48,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
             "&:hover": {
-              background: "linear-gradient(90deg, #1b47ae 0%, #571e96 100%)",
-            },
-            "&.Mui-disabled": {
-              background: "#ccc",
+              background:
+                "linear-gradient(90deg, #1b47ae 0%, #571e96 100%)",
             },
             borderRadius: "50%",
-            color: "white",
           }}
         >
-          <SendIcon sx={{ fontSize: 20 }} />
-        </IconButton>
+          <SendIcon sx={{ color: "white", fontSize: 20 }} />
+        </Button>
       </Box>
     </Box>
   );
