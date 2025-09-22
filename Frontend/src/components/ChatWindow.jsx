@@ -15,7 +15,6 @@ import { io } from "socket.io-client";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
- // removed module-level socket object; we use useRef below (avoids shared global state)
 
 // Format dates WhatsApp-style (unchanged)
 const formatDate = (dateString) => {
@@ -55,13 +54,15 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const messagesRef = useRef(null);
+  const inputBarRef = useRef(null);
   const theme = useTheme();
   const isMobileView = useMediaQuery(theme.breakpoints.down("md"));
-
-  // Use a ref inside the component (no global socket var)
   const socketRef = useRef(null);
 
-  // Init socket once (minimal change: include transportOptions.polling.withCredentials)
+  // measured height of the input bar (px)
+  const [inputBarHeight, setInputBarHeight] = useState(72);
+
+  // Init socket once (with credentials for polling)
   useEffect(() => {
     if (!socketRef.current) {
       socketRef.current = io(API_URL || "/", {
@@ -71,12 +72,11 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         transports: ["polling", "websocket"],
         transportOptions: {
           polling: {
-            withCredentials: true, // <--- critical for cookies during polling handshake
+            withCredentials: true,
           },
         },
       });
 
-      // keep your existing event handlers (unchanged)
       socketRef.current.on("receiveMessage", (msg) =>
         setMessages((prev) => [...prev, msg])
       );
@@ -93,9 +93,9 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         socketRef.current = null;
       }
     };
-  }, []); // run once (preserve original behavior)
+  }, []);
 
-  // Register user with socket — ensure we register after connect (and only when currentUser exists).
+  // Register user with socket after connect and when currentUser exists
   useEffect(() => {
     const s = socketRef.current;
     if (!s) return;
@@ -117,7 +117,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
     };
   }, [currentUser]);
 
-  // Fetch messages when otherUser changes (preserve original code & styles)
+  // Fetch messages when otherUser changes
   useEffect(() => {
     const fetchMessages = async () => {
       if (!otherUser || !currentUser) {
@@ -136,7 +136,36 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
     fetchMessages();
   }, [otherUser, currentUser]);
 
-  // Auto-scroll (unchanged)
+  // measure input bar height and apply padding to messages area
+  const measureInputHeight = () => {
+    try {
+      const h = inputBarRef.current ? inputBarRef.current.offsetHeight : 72;
+      setInputBarHeight(h);
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  // measure initially and on resize/orientationchange/focus changes
+  useEffect(() => {
+    measureInputHeight();
+    const onResize = () => {
+      // extra delay for mobile keyboard resizing behaviour
+      setTimeout(measureInputHeight, 120);
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    window.addEventListener("focusin", onResize);
+    window.addEventListener("focusout", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      window.removeEventListener("focusin", onResize);
+      window.removeEventListener("focusout", onResize);
+    };
+  }, []);
+
+  // auto-scroll when messages arrive
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -159,13 +188,15 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
 
   const groupedMessages = groupMessagesByDate(messages);
 
-  return !otherUser ? (
-    <Box
-      sx={{ flex: 1, alignItems: "center", justifyContent: "center", display: "flex" }}
-    >
-      <Typography>Select a user to start chatting</Typography>
-    </Box>
-  ) : (
+  if (!otherUser) {
+    return (
+      <Box sx={{ flex: 1, alignItems: "center", justifyContent: "center", display: "flex" }}>
+        <Typography>Select a user to start chatting</Typography>
+      </Box>
+    );
+  }
+
+  return (
     <Box
       sx={{
         flex: 1,
@@ -224,7 +255,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         </Typography>
       </Paper>
 
-      {/* Messages */}
+      {/* Messages container: add bottom padding equal to inputBarHeight + small gap */}
       <Box
         ref={messagesRef}
         sx={{
@@ -235,23 +266,15 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           minHeight: 0,
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
+          // dynamic padding bottom to never hide last message behind the input
+          pb: `${inputBarHeight + 16}px`,
         }}
       >
         {groupedMessages.map((item) => {
           if (item.type === "date") {
             return (
-              <Box
-                key={item.id}
-                sx={{ display: "flex", justifyContent: "center", my: 2 }}
-              >
-                <Box
-                  sx={{
-                    backgroundColor: "rgba(0, 0, 0, 0.1)",
-                    borderRadius: "20px",
-                    px: 2,
-                    py: 0.5,
-                  }}
-                >
+              <Box key={item.id} sx={{ display: "flex", justifyContent: "center", my: 2 }}>
+                <Box sx={{ backgroundColor: "rgba(0, 0, 0, 0.1)", borderRadius: "20px", px: 2, py: 0.5 }}>
                   <Typography variant="caption" sx={{ color: "text.secondary" }}>
                     {formatDate(item.date)}
                   </Typography>
@@ -261,10 +284,8 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           }
 
           const m = item;
-          const mine =
-            m.sender_id === currentUser?.id || m.senderId === currentUser?.id;
-          const isTaskCompleted =
-            m.message && m.message.includes("completed!!");
+          const mine = m.sender_id === currentUser?.id || m.senderId === currentUser?.id;
+          const isTaskCompleted = m.message && m.message.includes("completed!!");
 
           return (
             <Box
@@ -272,53 +293,26 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
               sx={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: isTaskCompleted
-                  ? "center"
-                  : mine
-                  ? "flex-end"
-                  : "flex-start",
+                alignItems: isTaskCompleted ? "center" : mine ? "flex-end" : "flex-start",
                 mb: 1.5,
               }}
             >
               <Box
                 sx={{
                   maxWidth: "70%",
-                  bgcolor: isTaskCompleted
-                    ? "linear-gradient(90deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%)"
-                    : mine
-                    ? "#6a11cb"
-                    : "#fff",
+                  bgcolor: isTaskCompleted ? "linear-gradient(90deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%)" : mine ? "#6a11cb" : "#fff",
                   color: isTaskCompleted ? "white" : mine ? "white" : "black",
                   px: 2,
                   py: 1,
-                  borderRadius: isTaskCompleted
-                    ? "16px"
-                    : mine
-                    ? "16px 0 16px 16px"
-                    : "0 16px 16px 16px",
+                  borderRadius: isTaskCompleted ? "16px" : mine ? "16px 0 16px 16px" : "0 16px 16px 16px",
                   boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
                   wordBreak: "break-word",
                 }}
               >
-                <Typography variant="body1">
-                  {m.message || m.content}
-                </Typography>
+                <Typography variant="body1">{m.message || m.content}</Typography>
                 {!isTaskCompleted && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: isTaskCompleted ? "#e0e0e0" : "#999",
-                      display: "block",
-                      mt: 0.5,
-                    }}
-                  >
-                    {mine ? currentUser?.name : otherUser?.name} •{" "}
-                    {m.created_at
-                      ? new Date(m.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : ""}
+                  <Typography variant="caption" sx={{ color: isTaskCompleted ? "#e0e0e0" : "#999", display: "block", mt: 0.5 }}>
+                    {mine ? currentUser?.name : otherUser?.name} • {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
                   </Typography>
                 )}
               </Box>
@@ -327,8 +321,9 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         })}
       </Box>
 
-      {/* Input */}
+      {/* Input bar: sticky to bottom, measured via ref, focus scrolls messages into view */}
       <Box
+        ref={inputBarRef}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -336,6 +331,9 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           p: 2,
           background: "#f0f0f0",
           borderTop: "1px solid #ddd",
+          position: "sticky",
+          bottom: 0,
+          zIndex: 2,
         }}
       >
         <TextField
@@ -350,6 +348,20 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
               ? (e.preventDefault(), sendMessage())
               : null
           }
+          onFocus={() => {
+            // after keyboard opens, scroll the messages area into view
+            setTimeout(() => {
+              if (messagesRef.current) {
+                messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+              }
+              // also re-measure because keyboard may have changed layout
+              measureInputHeight();
+            }, 300);
+          }}
+          onBlur={() => {
+            // re-measure after blur
+            setTimeout(measureInputHeight, 120);
+          }}
           sx={{
             background: "#fff",
             borderRadius: 24,
@@ -368,8 +380,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
             justifyContent: "center",
             background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
             "&:hover": {
-              background:
-                "linear-gradient(90deg, #1b47ae 0%, #571e96 100%)",
+              background: "linear-gradient(90deg, #1b47ae 0%, #571e96 100%)",
             },
             borderRadius: "50%",
           }}

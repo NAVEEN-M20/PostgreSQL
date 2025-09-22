@@ -12,27 +12,47 @@ const Chat = () => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [view, setView] = useState("sidebar"); // "sidebar" or "chat"
-  // NOTE: we now destructure setUser as well (your UserProvider already exposes it in other files)
   const { user, setUser } = useContext(UserContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
+  // --- NEW: set CSS var --vh to handle mobile viewport/keyboard resizing ---
+  useEffect(() => {
+    const setVh = () => {
+      // window.innerHeight changes when mobile keyboard opens; we store 1vh in px
+      document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+    };
+    setVh();
+    window.addEventListener("resize", setVh);
+    window.addEventListener("orientationchange", setVh);
+
+    // Also update on focusin/focusout — many mobile browsers change innerHeight only after focus
+    const onFocusIn = () => setTimeout(setVh, 250);
+    const onFocusOut = () => setTimeout(setVh, 250);
+    window.addEventListener("focusin", onFocusIn);
+    window.addEventListener("focusout", onFocusOut);
+
+    return () => {
+      window.removeEventListener("resize", setVh);
+      window.removeEventListener("orientationchange", setVh);
+      window.removeEventListener("focusin", onFocusIn);
+      window.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
+  // --- end new ---
+
   useEffect(() => {
     // Ensure the session is hydrated — if user missing, ask /api/me
-    // This is the minimal, non-invasive change: it does not touch styling/layout.
     let mounted = true;
     const fetchSessionAndUsers = async () => {
       try {
         if (!user) {
-          // call /api/me to restore session from cookie on direct reload
           const me = await axios.get(`${API_URL || ""}/api/me`, { withCredentials: true });
           if (mounted && me?.data?.user && setUser) {
             setUser(me.data.user);
           }
         }
 
-        // After attempting session restore, fetch users if authenticated
-        // We attempt to use current user from context, but also try /api/me again to be safe
         const activeUser = user || (await axios.get(`${API_URL || ""}/api/me`, { withCredentials: true })).data.user;
         if (!activeUser) {
           setUsers([]);
@@ -54,11 +74,10 @@ const Chat = () => {
     return () => {
       mounted = false;
     };
-    // Intentional empty deps: run once on mount and hydrate.
-  }, []); // keep original behaviour & styling
+  }, []); // run once on mount to hydrate session
 
-  const handleSelectUser = (user) => {
-    setSelectedUser(user);
+  const handleSelectUser = (u) => {
+    setSelectedUser(u);
     if (isMobile) setView("chat");
   };
 
@@ -73,7 +92,8 @@ const Chat = () => {
         position: "absolute",
         top: NAVBAR_HEIGHT,
         left: 0,
-        height: `calc(100vh - ${NAVBAR_HEIGHT}px)`,
+        // use JS-driven --vh so mobile keyboard resizing behaves correctly
+        height: `calc(var(--vh, 1vh) * 100 - ${NAVBAR_HEIGHT}px)`,
         width: "100vw",
         overflow: "hidden",
         background: "#ece5dd",
