@@ -6,6 +6,7 @@ import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
 import NewTask from "./components/Newtask";
 import Chat from "./components/Chat";
+import Logout from "./components/Logout";
 import { UserProvider } from "./components/UserProvider";
 import Navbar from "./components/NavBar"
 
@@ -36,6 +37,7 @@ function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/newtask" element={<NewTask />} />
                   <Route path="/chat" element={<Chat />} />
+                  <Route path="/logout" element={<Logout/>}/>
                 </Routes>
               </>
             }

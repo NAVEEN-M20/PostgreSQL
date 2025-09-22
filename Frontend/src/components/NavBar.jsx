@@ -83,8 +83,17 @@ export default function Navbar() {
               <MenuItem onClick={() => handleMenuNavigation("/chat")}>
                 Chat
               </MenuItem>
-              <MenuItem onClick={() => navigate("/")}>
-                <Box sx={{ display: "flex", alignItems: "center" , backgroundColor:"red", color:"white", padding:"5px 10px", borderRadius:"5px"}}>
+                <MenuItem onClick={() => handleMenuNavigation("/logout")}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    backgroundColor: "red",
+                    color: "white",
+                    padding: "5px 10px",
+                    borderRadius: "5px",
+                  }}
+                >
                   Logout <LogoutIcon sx={{ ml: 1, fontSize: 15 }} />
                 </Box>
               </MenuItem>
@@ -111,7 +120,7 @@ export default function Navbar() {
                   background: "rgba(255,255,255,0.1)",
                 },
               }}
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/logout")}
             >
               Logout <LogoutIcon sx={{ ml: 1, fontSize: 15 }} />
             </Button>
