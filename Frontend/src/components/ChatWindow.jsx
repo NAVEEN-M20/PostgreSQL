@@ -15,9 +15,9 @@ import { io } from "socket.io-client";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const socketRef = { current: null };
+ // removed module-level socket object; we use useRef below (avoids shared global state)
 
-// Format dates WhatsApp-style
+// Format dates WhatsApp-style (unchanged)
 const formatDate = (dateString) => {
   const date = new Date(dateString);
   const today = new Date();
@@ -34,7 +34,7 @@ const formatDate = (dateString) => {
   });
 };
 
-// Group messages by date
+// Group messages by date (unchanged)
 const groupMessagesByDate = (messages) => {
   const grouped = [];
   let currentDate = null;
@@ -58,11 +58,25 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
   const theme = useTheme();
   const isMobileView = useMediaQuery(theme.breakpoints.down("md"));
 
-  // Init socket once
+  // Use a ref inside the component (no global socket var)
+  const socketRef = useRef(null);
+
+  // Init socket once (minimal change: include transportOptions.polling.withCredentials)
   useEffect(() => {
     if (!socketRef.current) {
-      socketRef.current = io(API_URL, { withCredentials: true });
+      socketRef.current = io(API_URL || "/", {
+        path: "/socket.io/",
+        withCredentials: true,
+        autoConnect: true,
+        transports: ["polling", "websocket"],
+        transportOptions: {
+          polling: {
+            withCredentials: true, // <--- critical for cookies during polling handshake
+          },
+        },
+      });
 
+      // keep your existing event handlers (unchanged)
       socketRef.current.on("receiveMessage", (msg) =>
         setMessages((prev) => [...prev, msg])
       );
@@ -79,17 +93,31 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         socketRef.current = null;
       }
     };
-  }, []);
+  }, []); // run once (preserve original behavior)
 
-  // Register user with socket
+  // Register user with socket — ensure we register after connect (and only when currentUser exists).
   useEffect(() => {
-    if (currentUser && socketRef.current) {
-      if (!socketRef.current.connected) socketRef.current.connect();
-      socketRef.current.emit("register", currentUser.id);
+    const s = socketRef.current;
+    if (!s) return;
+
+    const doRegister = () => {
+      if (currentUser?.id) {
+        s.emit("register", currentUser.id);
+      }
+    };
+
+    if (s.connected) {
+      doRegister();
+    } else {
+      s.once("connect", doRegister);
     }
+
+    return () => {
+      if (s) s.off("connect", doRegister);
+    };
   }, [currentUser]);
 
-  // Fetch messages when otherUser changes
+  // Fetch messages when otherUser changes (preserve original code & styles)
   useEffect(() => {
     const fetchMessages = async () => {
       if (!otherUser || !currentUser) {
@@ -97,10 +125,9 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         return;
       }
       try {
-        const res = await axios.get(
-          `${API_URL}/api/messages/${otherUser.id}`,
-          { withCredentials: true }
-        );
+        const res = await axios.get(`${API_URL}/api/messages/${otherUser.id}`, {
+          withCredentials: true,
+        });
         setMessages(res.data || []);
       } catch (err) {
         console.error("Error fetching messages:", err);
@@ -109,7 +136,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
     fetchMessages();
   }, [otherUser, currentUser]);
 
-  // Auto-scroll
+  // Auto-scroll (unchanged)
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -118,6 +145,10 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
 
   const sendMessage = () => {
     if (!text.trim() || !otherUser || !currentUser) return;
+    if (!socketRef.current) {
+      console.error("Socket not initialized");
+      return;
+    }
     socketRef.current.emit("sendMessage", {
       senderId: currentUser.id,
       receiverId: otherUser.id,
@@ -321,7 +352,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           }
           sx={{
             background: "#fff",
-            borderRadius: 2,
+            borderRadius: 24,
             boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             "& .MuiOutlinedInput-root": { borderRadius: 24 },
           }}
