@@ -14,12 +14,11 @@ import { Server } from "socket.io";
 // ----------------- CONFIG -----------------
 const app = express();
 const server = http.createServer(app);
-const port = process.env.PORT || 5000; // ⚡ Render provides PORT
+const port = process.env.PORT || 5000;
 const saltRounds = 10;
 env.config();
 
-// ----------------- CORS (must be before sessions) -----------------
-// allow both production frontend and localhost dev
+// ----------------- CORS -----------------
 const FRONTEND = process.env.FRONTEND_URL || "https://taskportalx.netlify.app";
 const LOCAL_DEV = "http://localhost:5173";
 const allowedOrigins = [FRONTEND, LOCAL_DEV].filter(Boolean);
@@ -27,7 +26,6 @@ const allowedOrigins = [FRONTEND, LOCAL_DEV].filter(Boolean);
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow requests with no origin (like mobile apps, curl)
       if (!origin) return callback(null, true);
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
@@ -42,22 +40,19 @@ app.use(
 // ----------------- MIDDLEWARE -----------------
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-// trust proxy so secure cookies work behind Render/Netlify proxies
 app.set("trust proxy", 1);
 
-// Session (must come before passport.session())
 app.use(
   session({
     name: "taskportal.sid",
     secret: process.env.SESSION_SECRET || "fallbacksecret",
     resave: false,
-    saveUninitialized: false, // don't create empty sessions
+    saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // true on HTTPS (Render)
+      secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      maxAge: 24 * 60 * 60 * 1000,
     },
   })
 );
@@ -67,8 +62,6 @@ app.use(passport.session());
 
 // ----------------- DATABASE -----------------
 const { Pool } = pg;
-
-// Use DATABASE_URL (Supabase) with SSL config for hosted DBs (Supabase)
 const db = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -80,13 +73,13 @@ const io = new Server(server, {
     origin: allowedOrigins,
     credentials: true,
   },
-  path: "/socket.io/", // Explicitly set the path
+  path: "/socket.io/",
 });
 
 const onlineUsers = {}; // userId -> socketId
 
-// Function to send unread counts to a user
-const sendUnreadCounts = async (userId) => {
+// Function to get unread counts for a user
+const getUnreadCounts = async (userId) => {
   try {
     const result = await db.query(
       `SELECT sender_id, COUNT(*) as count 
@@ -101,64 +94,76 @@ const sendUnreadCounts = async (userId) => {
       unreadCounts[row.sender_id] = parseInt(row.count);
     });
     
+    return unreadCounts;
+  } catch (err) {
+    console.error("Error fetching unread counts:", err);
+    return {};
+  }
+};
+
+// Function to send unread counts to a user
+const sendUnreadCounts = async (userId) => {
+  try {
+    const unreadCounts = await getUnreadCounts(userId);
+    
     if (onlineUsers[userId]) {
       io.to(onlineUsers[userId]).emit("unreadCounts", unreadCounts);
     }
   } catch (err) {
-    console.error("Error fetching unread counts:", err);
+    console.error("Error sending unread counts:", err);
   }
 };
 
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  socket.on("register", (userId) => {
+  socket.on("register", async (userId) => {
     onlineUsers[userId] = socket.id;
     console.log("✅ Registered user:", userId);
     
     // Send initial unread counts when user registers
-    sendUnreadCounts(userId);
+    await sendUnreadCounts(userId);
   });
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     try {
-      // persist message and emit to receiver if online
+      // Persist message with is_read = false by default
       const result = await db.query(
-        "INSERT INTO messages (sender_id, receiver_id, message) VALUES ($1, $2, $3) RETURNING *",
+        "INSERT INTO messages (sender_id, receiver_id, message, is_read) VALUES ($1, $2, $3, false) RETURNING *",
         [senderId, receiverId, message]
       );
       const newMessage = result.rows[0];
 
+      // Send message to receiver if online
       if (onlineUsers[receiverId]) {
         io.to(onlineUsers[receiverId]).emit("receiveMessage", newMessage);
-        // Update unread counts for receiver
-        sendUnreadCounts(receiverId);
       }
 
-      // ack to sender
+      // Update unread counts for receiver
+      await sendUnreadCounts(receiverId);
+      
+      // Ack to sender
       socket.emit("messageSent", newMessage);
+      
     } catch (err) {
       console.error("❌ Error saving message:", err);
       socket.emit("error", { message: "Message save failed" });
     }
   });
 
-  // Add socket event for marking messages as read
+  // Mark messages as read from a specific user
   socket.on("markAsRead", async ({ senderId, receiverId }) => {
     try {
+      // Update database to mark messages as read
       await db.query(
         "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false",
         [senderId, receiverId]
       );
       
-      // Notify the sender that their messages were read
-      if (onlineUsers[senderId]) {
-        io.to(onlineUsers[senderId]).emit("messagesRead", { readerId: receiverId });
-      }
-      
       // Update unread counts for both users
-      sendUnreadCounts(receiverId);
-      sendUnreadCounts(senderId);
+      await sendUnreadCounts(receiverId);
+      await sendUnreadCounts(senderId);
+      
     } catch (err) {
       console.error("❌ Error marking messages as read:", err);
     }
@@ -188,7 +193,6 @@ app.get("/api/dashboard", async (req, res) => {
         "WHERE t.assigned_to = $1 ORDER BY t.created_at DESC",
       [userId]
     );
-    // return tasks and current user (so frontend can set context)
     res.json({ user: req.user || null, tasks: tasks.rows });
   } catch (err) {
     console.error(err);
@@ -199,7 +203,6 @@ app.get("/api/dashboard", async (req, res) => {
 // ---- Get users ----
 app.get("/api/users", async (req, res) => {
   try {
-    // Ensure authenticated when requesting users - optional but recommended
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     const users = await db.query("SELECT id, name, email FROM users WHERE id != $1", [
@@ -246,8 +249,6 @@ app.delete("/api/task/:id", async (req, res) => {
 });
 
 // ----------------- AUTH -----------------
-// We'll return JSON and make sure req.login() is called so the session is set.
-
 passport.use(
   new Strategy(async function verify(username, password, cb) {
     try {
@@ -266,10 +267,7 @@ passport.use(
   })
 );
 
-// Only store user.id in session
 passport.serializeUser((user, cb) => cb(null, user.id));
-
-// Load full user from DB when session is restored
 passport.deserializeUser(async (id, cb) => {
   try {
     const result = await db.query("SELECT id, name, email FROM users WHERE id = $1", [id]);
@@ -279,7 +277,6 @@ passport.deserializeUser(async (id, cb) => {
   }
 });
 
-// Login route (uses passport.authenticate but then returns JSON)
 app.post("/api/login", (req, res, next) => {
   passport.authenticate("local", (err, user, info) => {
     if (err) return next(err);
@@ -287,14 +284,12 @@ app.post("/api/login", (req, res, next) => {
 
     req.login(user, (err) => {
       if (err) return next(err);
-      // Return safe user object
       const safeUser = { id: user.id, name: user.name, email: user.email };
       return res.json({ success: true, user: safeUser });
     });
   })(req, res, next);
 });
 
-// Register
 app.post("/api/register", async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -313,7 +308,6 @@ app.post("/api/register", async (req, res) => {
     );
     const user = result.rows[0];
 
-    // login the user so session cookie is set immediately
     req.login(user, (err) => {
       if (err) {
         console.error("Login after register failed:", err);
@@ -335,6 +329,19 @@ app.post("/api/logout", (req, res) => {
 });
 
 // ----------------- CHAT APIs -----------------
+// Get unread counts for all users
+app.get("/api/messages/unread-counts", async (req, res) => {
+  try {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    
+    const unreadCounts = await getUnreadCounts(req.user.id);
+    res.json(unreadCounts);
+  } catch (err) {
+    console.error("Error fetching unread counts:", err);
+    res.status(500).json({ error: "Error fetching unread counts" });
+  }
+});
+
 app.get("/api/messages/:otherUserId", async (req, res) => {
   try {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
@@ -354,57 +361,6 @@ app.get("/api/messages/:otherUserId", async (req, res) => {
   } catch (err) {
     console.error("Error fetching messages:", err);
     res.status(500).json({ error: "Error fetching messages" });
-  }
-});
-
-// Get unread message count for a specific user
-app.get("/api/messages/unread/:otherUserId", async (req, res) => {
-  try {
-    console.log("Unread messages endpoint hit for user:", req.user?.id, "other user:", req.params.otherUserId);
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
-
-    const { otherUserId } = req.params;
-    
-    // Validate otherUserId is a number
-    if (isNaN(parseInt(otherUserId))) {
-      return res.status(400).json({ error: "Invalid user ID" });
-    }
-    
-    const result = await db.query(
-      "SELECT COUNT(*) FROM messages WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false",
-      [otherUserId, req.user.id]
-    );
-    
-    console.log("Unread count result:", result.rows[0].count);
-    res.json({ count: parseInt(result.rows[0].count) });
-  } catch (err) {
-    console.error("Error fetching unread messages:", err);
-    res.status(500).json({ error: "Error fetching unread messages" });
-  }
-});
-
-// Mark messages as read from a specific user
-app.post("/api/messages/mark-read/:otherUserId", async (req, res) => {
-  try {
-    console.log("Mark as read endpoint hit for user:", req.user?.id, "other user:", req.params.otherUserId);
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
-
-    const { otherUserId } = req.params;
-    const result = await db.query(
-      "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false RETURNING *",
-      [otherUserId, req.user.id]
-    );
-    
-    console.log("Marked as read:", result.rowCount, "messages");
-    
-    // Send updated unread counts via Socket.IO
-    sendUnreadCounts(req.user.id);
-    sendUnreadCounts(otherUserId);
-    
-    res.json({ success: true, message: "Messages marked as read", count: result.rowCount });
-  } catch (err) {
-    console.error("Error marking messages as read:", err);
-    res.status(500).json({ error: "Error marking messages as read" });
   }
 });
 
