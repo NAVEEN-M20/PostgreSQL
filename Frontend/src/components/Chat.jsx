@@ -1,13 +1,17 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Box, useTheme, useMediaQuery } from "@mui/material";
+import { Box, Typography, useTheme, useMediaQuery } from "@mui/material";
 import ChatSidebar from "./ChatSidebar";
 import ChatWindow from "./ChatWindow";
 import axios from "axios";
 import { UserContext } from "./UserContext";
-import { io } from "socket.io-client"; // ✅ proper import
+import { io } from "socket.io-client";
+import { useSearchParams } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const NAVBAR_HEIGHT = 64;
+const NAVBAR_HEIGHT = 64; 
+
+// Global socket instance to maintain single connection
+let globalSocket = null;
 
 const Chat = () => {
   const [users, setUsers] = useState([]);
@@ -17,92 +21,111 @@ const Chat = () => {
   const { user, setUser } = useContext(UserContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const socketRef = React.useRef(null);
+  const [socket, setSocket] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Viewport height handling
+  // Initialize socket connection once
   useEffect(() => {
-    const setVh = () => {
-      document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
-    };
-    setVh();
-    window.addEventListener("resize", setVh);
-    window.addEventListener("orientationchange", setVh);
-
-    return () => {
-      window.removeEventListener("resize", setVh);
-      window.removeEventListener("orientationchange", setVh);
-    };
-  }, []);
-
-  // Initialize socket connection
-  useEffect(() => {
-    if (!socketRef.current) {
-      socketRef.current = io(API_URL, {
+    if (!globalSocket) {
+      globalSocket = io(API_URL, {
         path: "/socket.io/",
         withCredentials: true,
         transports: ["polling", "websocket"],
       });
 
-      socketRef.current.on("unreadCounts", (counts) => {
-        setUnreadCounts(counts);
-      });
-
-      socketRef.current.on("receiveMessage", (message) => {
-        if (message.sender_id && message.sender_id !== user?.id) {
-          setUnreadCounts((prev) => ({
-            ...prev,
-            [message.sender_id]: (prev[message.sender_id] || 0) + 1,
-          }));
-        }
-      });
-
-      socketRef.current.on("connect", () => {
+      globalSocket.on("connect", () => {
+        console.log("✅ Socket connected");
         if (user?.id) {
-          socketRef.current.emit("register", user.id);
+          globalSocket.emit("register", user.id);
         }
+      });
+
+      globalSocket.on("disconnect", () => {
+        console.log("❌ Socket disconnected");
+      });
+
+      globalSocket.on("connect_error", (error) => {
+        console.error("Socket connection error:", error);
       });
     }
 
+    setSocket(globalSocket);
+
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
+      // Don't disconnect - keep socket alive for app lifetime
+    };
+  }, []);
+
+  // Register user with socket when user changes
+  useEffect(() => {
+    if (socket && user?.id) {
+      socket.emit("register", user.id);
+    }
+  }, [socket, user]);
+
+  // Socket event listeners for unread counts
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUnreadCounts = (counts) => {
+      console.log("📨 Received unread counts:", counts);
+      setUnreadCounts(counts);
+    };
+
+    const handleReceiveMessage = (message) => {
+      console.log("📩 New message received:", message);
+      // Increment unread only if the conversation is not currently open
+      if (message.sender_id && message.sender_id !== user?.id && message.sender_id !== selectedUser?.id) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [message.sender_id]: (prev[message.sender_id] || 0) + 1
+        }));
       }
     };
-  }, [user]);
+
+    socket.on("unreadCounts", handleUnreadCounts);
+    socket.on("receiveMessage", handleReceiveMessage);
+
+    return () => {
+      socket.off("unreadCounts", handleUnreadCounts);
+      socket.off("receiveMessage", handleReceiveMessage);
+    };
+  }, [socket, user, selectedUser]);
+
+  // Viewport height handled globally in App.jsx
 
   // Fetch session, users, and initial unread counts
   useEffect(() => {
     let mounted = true;
+
     const fetchSessionAndUsers = async () => {
       try {
-        if (!user) {
-          const me = await axios.get(`${API_URL}/api/me`, { withCredentials: true });
-          if (mounted && me?.data?.user && setUser) {
-            setUser(me.data.user);
-          }
+        // Always get session once here (simpler flow)
+        const me = await axios.get(`${API_URL}/api/me`, { withCredentials: true });
+        if (mounted && me?.data?.user && setUser) {
+          setUser(me.data.user);
         }
 
-        const activeUser =
-          user ||
-          (await axios.get(`${API_URL}/api/me`, { withCredentials: true })).data.user;
+        const activeUser = me?.data?.user;
         if (!activeUser) {
-          setUsers([]);
+          if (mounted) {
+            setUsers([]);
+            setUnreadCounts({});
+          }
           return;
         }
 
+        // Fetch users and unread counts in parallel
         const [usersRes, unreadRes] = await Promise.all([
           axios.get(`${API_URL}/api/users`, { withCredentials: true }),
-          axios.get(`${API_URL}/api/messages/unread-counts`, { withCredentials: true }),
+          axios.get(`${API_URL}/api/messages/unread-counts`, { withCredentials: true })
         ]);
 
         if (mounted) {
           setUsers(usersRes.data || []);
           setUnreadCounts(unreadRes.data || {});
-        }
-
-        if (socketRef.current && activeUser.id) {
-          socketRef.current.emit("register", activeUser.id);
+          console.log("👥 Users loaded:", usersRes.data?.length);
+          console.log("🔔 Initial unread counts:", unreadRes.data);
         }
       } catch (err) {
         console.error("Error initializing chat:", err);
@@ -118,23 +141,31 @@ const Chat = () => {
     return () => {
       mounted = false;
     };
-  }, [user, setUser]);
+  }, [setUser]);
 
-  const handleSelectUser = (user) => {
-    setSelectedUser(user);
+  const handleSelectUser = (selectedUser) => {
+    console.log("👤 User selected:", selectedUser.name);
+    setSelectedUser(selectedUser);
+    
+    // reflect in URL so back swipe stays within /chat
+    setSearchParams({ uid: String(selectedUser.id) }, { replace: false });
+    
     if (isMobile) {
       setView("chat");
     }
-
-    if (socketRef.current && user?.id) {
-      socketRef.current.emit("markAsRead", {
-        senderId: user.id,
-        receiverId: user.id,
+    
+    // Mark messages as read when user is selected
+    if (socket && user?.id && selectedUser?.id) {
+      console.log("📖 Marking messages as read from:", selectedUser.name);
+      socket.emit("markAsRead", {
+        senderId: selectedUser.id,
+        receiverId: user.id
       });
-
-      setUnreadCounts((prev) => ({
+      
+      // Update local state immediately for better UX
+      setUnreadCounts(prev => ({
         ...prev,
-        [user.id]: 0,
+        [selectedUser.id]: 0
       }));
     }
   };
@@ -142,7 +173,29 @@ const Chat = () => {
   const handleBack = () => {
     setView("sidebar");
     setSelectedUser(null);
+    // clear query param to support back within /chat
+    setSearchParams({}, { replace: false });
   };
+
+  // Debug: Log unread counts changes
+  useEffect(() => {
+    console.log("🔔 Unread counts updated:", unreadCounts);
+  }, [unreadCounts]);
+
+  // Sync selected user with URL (uid) so back swipe stays within /chat
+  useEffect(() => {
+    const uid = searchParams.get("uid");
+    if (uid && users.length > 0) {
+      const u = users.find(x => String(x.id) === String(uid));
+      if (u) {
+        setSelectedUser(u);
+        if (isMobile) setView("chat");
+      }
+    } else {
+      // No uid => show sidebar on mobile
+      if (isMobile) setView("sidebar");
+    }
+  }, [searchParams, users, isMobile]);
 
   return (
     <Box
@@ -157,6 +210,7 @@ const Chat = () => {
         background: "#ece5dd",
       }}
     >
+      {/* Always show sidebar on desktop, conditionally on mobile */}
       {(view === "sidebar" || !isMobile) && (
         <ChatSidebar
           users={users}
@@ -166,14 +220,33 @@ const Chat = () => {
           unreadCounts={unreadCounts}
         />
       )}
-      {(view === "chat" || !isMobile) && (
+      
+      {/* Show chat window when user is selected (always on desktop if user selected) */}
+      {(view === "chat" || (!isMobile && selectedUser)) && (
         <ChatWindow
           currentUser={user}
           otherUser={selectedUser}
           onBack={handleBack}
           isMobile={isMobile}
-          socketRef={socketRef}
+          socket={socket}
         />
+      )}
+      
+      {/* Show placeholder when no user selected on desktop */}
+      {!isMobile && !selectedUser && (
+        <Box 
+          sx={{ 
+            flex: 1, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            background: '#f7f7f7'
+          }}
+        >
+          <Typography variant="h6" color="text.secondary">
+            Select a user to start chatting
+          </Typography>
+        </Box>
       )}
     </Box>
   );

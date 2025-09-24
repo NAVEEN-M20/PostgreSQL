@@ -8,7 +8,6 @@ import { Box, IconButton, Menu, MenuItem, useMediaQuery, useTheme } from "@mui/m
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 
-const API_URL = import.meta.env.VITE_API_URL;
 
 export default function Navbar() {
   const navigate = useNavigate();

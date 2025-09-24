@@ -47,37 +47,38 @@ const groupMessagesByDate = (messages) => {
   return grouped;
 };
 
-const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => {
+const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socket }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const messagesRef = useRef(null);
   const inputBarRef = useRef(null);
+  const inputRef = useRef(null);
   const theme = useTheme();
   const isMobileView = useMediaQuery(theme.breakpoints.down("md"));
   const [inputBarHeight, setInputBarHeight] = useState(72);
 
   // Mark messages as read when chat window is opened or otherUser changes
   useEffect(() => {
-    if (otherUser && currentUser && socketRef?.current) {
-      socketRef.current.emit("markAsRead", {
+    if (otherUser && currentUser && socket) {
+      socket.emit("markAsRead", {
         senderId: otherUser.id,
-        receiverId: currentUser.id
+        receiverId: currentUser.id,
       });
     }
-  }, [otherUser, currentUser, socketRef]);
+  }, [otherUser, currentUser, socket]);
 
   // Listen for new messages
   useEffect(() => {
-    if (!socketRef?.current) return;
+    if (!socket) return;
 
-    const socket = socketRef.current;
     const handleReceiveMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
+
       // If this message is from the current chat user, mark it as read immediately
       if (otherUser && msg.sender_id === otherUser.id) {
         socket.emit("markAsRead", {
           senderId: otherUser.id,
-          receiverId: currentUser.id
+          receiverId: currentUser.id,
         });
       }
     };
@@ -89,7 +90,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => 
       socket.off("receiveMessage", handleReceiveMessage);
       socket.off("messageSent", handleReceiveMessage);
     };
-  }, [otherUser, currentUser, socketRef]);
+  }, [otherUser, currentUser, socket]);
 
   // Fetch messages when otherUser changes
   useEffect(() => {
@@ -103,12 +104,12 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => 
           withCredentials: true,
         });
         setMessages(res.data || []);
-        
+
         // Mark messages as read after fetching
-        if (socketRef?.current) {
-          socketRef.current.emit("markAsRead", {
+        if (socket) {
+          socket.emit("markAsRead", {
             senderId: otherUser.id,
-            receiverId: currentUser.id
+            receiverId: currentUser.id,
           });
         }
       } catch (err) {
@@ -116,7 +117,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => 
       }
     };
     fetchMessages();
-  }, [otherUser, currentUser, socketRef]);
+  }, [otherUser, currentUser, socket]);
 
   const measureInputHeight = () => {
     try {
@@ -146,10 +147,27 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => 
     }
   }, [messages]);
 
+  // Keep input visible when mobile keyboard opens
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const onFocus = () => {
+      setTimeout(() => {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (err){
+          console.log(err);
+        }
+      }, 120);
+    };
+    el.addEventListener('focus', onFocus, { passive: true });
+    return () => el.removeEventListener('focus', onFocus);
+  }, []);
+
   const sendMessage = () => {
-    if (!text.trim() || !otherUser || !currentUser || !socketRef?.current) return;
-    
-    socketRef.current.emit("sendMessage", {
+    if (!text.trim() || !otherUser || !currentUser || !socket) return;
+
+    socket.emit("sendMessage", {
       senderId: currentUser.id,
       receiverId: otherUser.id,
       message: text,
@@ -183,6 +201,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => 
         flexDirection: "column",
         background: "#ece5dd",
         minWidth: 0,
+        WebkitOverflowScrolling: 'touch'
       }}
     >
       <Paper
@@ -308,6 +327,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => 
         }}
       >
         <TextField
+          inputRef={inputRef}
           placeholder="Type a message"
           multiline
           fullWidth

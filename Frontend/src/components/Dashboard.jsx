@@ -26,7 +26,7 @@ function Dashboard() {
     if (!socket) {
       socket = io(API_URL, { 
         withCredentials: true,
-        path: "/socket.io/", // Add this line
+        path: "/socket.io/",
       });
     }
 

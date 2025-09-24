@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import Welcome from "./components/Welcome"
 import Login from "./components/Login";
@@ -11,6 +11,19 @@ import { UserProvider } from "./components/UserProvider";
 import Navbar from "./components/NavBar"
 
 function App() {
+  useEffect(() => {
+    const setVh = () => {
+      document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+    };
+    setVh();
+    window.addEventListener("resize", setVh);
+    window.addEventListener("orientationchange", setVh);
+    return () => {
+      window.removeEventListener("resize", setVh);
+      window.removeEventListener("orientationchange", setVh);
+    };
+  }, []);
+
   return (
     <UserProvider>
       <Router>

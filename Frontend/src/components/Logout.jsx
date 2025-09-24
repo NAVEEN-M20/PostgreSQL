@@ -6,9 +6,14 @@ import { useNavigate } from "react-router-dom";
 export default function Logout() {
   const navigate = useNavigate();
 
-  const handleYes = () => {
-    // you might want to call your backend API for logout before navigating
-    navigate("/");
+  const handleYes = async () => {
+    try {
+      await fetch(import.meta.env.VITE_API_URL + "/api/logout", { method: "POST", credentials: "include" });
+    } catch (e) {
+      // ignore
+    } finally {
+      navigate("/");
+    }
   };
 
   const handleNo = () => {

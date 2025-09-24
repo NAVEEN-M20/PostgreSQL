@@ -188,7 +188,7 @@ app.get("/api/dashboard", async (req, res) => {
   try {
     const userId = req.user?.id || null;
     const tasks = await db.query(
-      "SELECT t.id, t.title, t.description, t.created_at, u.name AS assigned_by_name " +
+      "SELECT t.id, t.title, t.description, t.created_at, t.assigned_by, u.name AS assigned_by_name " +
         "FROM tasks t JOIN users u ON t.assigned_by = u.id " +
         "WHERE t.assigned_to = $1 ORDER BY t.created_at DESC",
       [userId]
