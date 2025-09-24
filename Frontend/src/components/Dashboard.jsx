@@ -74,13 +74,14 @@ function Dashboard() {
 
   return (
     <Box
+      className="dashboard-container"
       sx={{
         display: "flex",
         flexDirection: "column",
         height: "100vh",
         overflow: "hidden",
         p: 2,
-        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+        background: "transparent",
       }}
     >
       {/* Header Section - Fixed */}
@@ -128,19 +129,22 @@ function Dashboard() {
           display: "flex",
           flexDirection: "column",
           borderRadius: 3,
-          boxShadow: "0px 4px 20px rgba(0,0,0,0.15)",
+          boxShadow: "none",
           overflow: "hidden",
+          background: "transparent"
         }}
       >
         {/* Tasks Header with gradient and margin bottom */}
         <Box 
           sx={{ 
             p: 2, 
-            background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-            color: "white",
+            background: "transparent",
+            color: "inherit",
             borderTopLeftRadius: 3,
             borderTopRightRadius: 3,
-            mb: 2
+            mb: 2,
+            borderBottom: '1px solid',
+            borderColor: 'divider'
           }}
         >
           <Typography variant="h6" align="center">
@@ -179,18 +183,19 @@ function Dashboard() {
                         onClick={() => handleDelete(task.id, task.title, task.assigned_by)}
                         sx={{ ml: 3 }}
                       >
-                        <DeleteIcon sx={{ color: "red" }} />
+                        <DeleteIcon sx={{ color: "#ef4444" }} />
                       </IconButton>
                     }
                     sx={{
                       mb: 2,
-                      border: "1px solid #ddd",
+                      border: "1px solid",
+                      borderColor: 'divider',
                       borderRadius: 2,
-                      boxShadow: "0px 2px 6px rgba(0,0,0,0.1)",
-                      backgroundColor: "#fafafa",
+                      boxShadow: "none",
+                      backgroundColor: "transparent",
                       "&:hover": {
-                        backgroundColor: "#f0f0f0",
-                        boxShadow: "0px 4px 8px rgba(0,0,0,0.15)",
+                        backgroundColor: "transparent",
+                        boxShadow: "none",
                       },
                     }}
                   >

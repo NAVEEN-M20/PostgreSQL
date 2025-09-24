@@ -207,7 +207,7 @@ const Chat = () => {
         height: `calc(var(--vh, 1vh) * 100 - ${NAVBAR_HEIGHT}px)`,
         width: "100vw",
         overflow: "hidden",
-        background: "#ece5dd",
+        background: "transparent",
       }}
     >
       {/* Always show sidebar on desktop, conditionally on mobile */}
@@ -235,12 +235,13 @@ const Chat = () => {
       {/* Show placeholder when no user selected on desktop */}
       {!isMobile && !selectedUser && (
         <Box 
+          className="chat-window-bg"
           sx={{ 
             flex: 1, 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
-            background: '#f7f7f7'
+            background: 'transparent'
           }}
         >
           <Typography variant="h6" color="text.secondary">

@@ -7,6 +7,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Box, IconButton, Menu, MenuItem, useMediaQuery, useTheme } from "@mui/material";
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import { useThemeMode } from './ThemeContext';
 
 
 export default function Navbar() {
@@ -16,6 +19,7 @@ export default function Navbar() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
+  const { mode, toggle } = useThemeMode();
 
   // Hide Navbar on Welcome/Login/Register
   const hideOn = ["/", "/login", "/register"];
@@ -47,11 +51,14 @@ export default function Navbar() {
       <Toolbar>
         <Typography
           variant="h6"
-          sx={{ flexGrow: 1, cursor: "pointer" }}
+          sx={{ cursor: "pointer" }}
           onClick={() => navigate("/dashboard")}
         >
           TaskPortal
         </Typography>
+        <IconButton color="inherit" onClick={toggle} sx={{ ml: 1, mr: 'auto' }} aria-label="toggle theme">
+          {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+        </IconButton>
         
         {isMobile ? (
           <>
@@ -110,6 +117,7 @@ export default function Navbar() {
               Chat
             </Button>
             <Button
+              className="btn-logout"
               variant="outlined"
               sx={{
                 color: "white",

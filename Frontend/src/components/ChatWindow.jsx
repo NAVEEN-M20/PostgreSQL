@@ -186,20 +186,21 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socket }) => {
 
   if (!otherUser) {
     return (
-      <Box sx={{ flex: 1, alignItems: "center", justifyContent: "center", display: "flex" }}>
-        <Typography>Select a user to start chatting</Typography>
+      <Box className="chat-window-bg" sx={{ flex: 1, alignItems: "center", justifyContent: "center", display: "flex" }}>
+        <Typography color="text.secondary">Select a user to start chatting</Typography>
       </Box>
     );
   }
 
   return (
     <Box
+      className="chat-window-bg"
       sx={{
         flex: 1,
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "#ece5dd",
+        background: "transparent",
         minWidth: 0,
         WebkitOverflowScrolling: 'touch'
       }}
@@ -210,14 +211,14 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socket }) => {
           p: 2,
           borderRadius: 0,
           boxShadow: "none",
-          background: "#fff",
+          background: "transparent",
           display: "flex",
           alignItems: "center",
         }}
       >
         {(isMobile || isMobileView) && (
-          <IconButton onClick={onBack} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
+          <IconButton onClick={onBack} color="inherit" sx={{ mr: 1 }}>
+            <ArrowBackIcon sx={{ color: 'inherit' }} />
           </IconButton>
         )}
         <Box
@@ -239,6 +240,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socket }) => {
         </Box>
         <Typography
           variant="h6"
+          className="gradient-text"
           sx={{
             fontWeight: "bold",
             background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
@@ -252,17 +254,17 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socket }) => {
       </Paper>
 
       <Box
-        ref={messagesRef}
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          p: 2,
-          background: "#f7f7f7",
-          minHeight: 0,
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
-          pb: `${inputBarHeight + 16}px`,
-        }}
+      ref={messagesRef}
+      sx={{
+      flex: 1,
+      overflowY: "auto",
+      p: 2,
+      background: "transparent",
+      minHeight: 0,
+      scrollbarWidth: "none",
+      "&::-webkit-scrollbar": { display: "none" },
+      pb: `${inputBarHeight + 16}px`,
+      }}
       >
         {groupedMessages.map((item) => {
           if (item.type === "date") {
@@ -291,6 +293,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socket }) => {
               }}
             >
               <Box
+                className={mine ? "chat-bubble-mine" : "chat-bubble-other"}
                 sx={{
                   maxWidth: "70%",
                   bgcolor: mine ? "#6a11cb" : "#fff",
@@ -319,7 +322,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socket }) => {
           alignItems: "center",
           gap: 1,
           p: 2,
-          background: "#f0f0f0",
+          background: "transparent",
           borderTop: "1px solid #ddd",
           position: "sticky",
           bottom: 0,

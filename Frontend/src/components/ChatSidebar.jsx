@@ -9,6 +9,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
 
   return (
     <Box
+      className="chat-sidebar-bg"
       sx={{
         width: isMobile ? "100%" : "30%",
         minWidth: isMobile ? "100%" : 280,
@@ -16,7 +17,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
         display: "flex",
         flexDirection: "column",
         borderRight: isMobile ? "none" : "1.5px solid #dadada",
-        background: "#fff",
+        background: "transparent",
       }}
     >
       <Typography
@@ -24,7 +25,8 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
         sx={{
           p: 2,
           fontWeight: "bolder",
-          borderBottom: "1.5px solid #dadada",
+          borderBottom: "1px solid",
+          borderColor: 'divider',
         }}
       >
         Chats
@@ -85,6 +87,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                   </Box>
                   <Box sx={{ flexGrow: 1 }}>
                     <Typography
+                      className="gradient-text"
                       sx={{
                         fontWeight: "bold",
                         background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
@@ -111,7 +114,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                         minWidth: '20px',
                         height: '20px',
                         borderRadius: '50%',
-                        background: 'linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)',
+                        background: '#1d4ed8',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

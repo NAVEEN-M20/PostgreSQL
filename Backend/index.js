@@ -221,14 +221,26 @@ app.post("/api/task/new", async (req, res) => {
 
   const { title, description, assigned_to } = req.body;
   try {
-    await db.query(
-      "INSERT INTO tasks (title, description, assigned_by, assigned_to) VALUES ($1, $2, $3, $4)",
-      [title, description, req.user.id, assigned_to]
-    );
-    res.json({ success: true, message: "Task created successfully" });
+    // Normalize to array
+    const assignees = Array.isArray(assigned_to) ? assigned_to : [assigned_to].filter(Boolean);
+    if (assignees.length === 0) {
+      return res.status(400).json({ error: "No assignees provided" });
+    }
+
+    await db.query('BEGIN');
+    for (const to of assignees) {
+      await db.query(
+        "INSERT INTO tasks (title, description, assigned_by, assigned_to) VALUES ($1, $2, $3, $4)",
+        [title, description, req.user.id, to]
+      );
+    }
+    await db.query('COMMIT');
+
+    res.json({ success: true, message: `Task created for ${assignees.length} user(s)` });
   } catch (err) {
+    await db.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: "Error creating task" });
+    res.status(500).json({ error: "Error creating task(s)" });
   }
 });
 

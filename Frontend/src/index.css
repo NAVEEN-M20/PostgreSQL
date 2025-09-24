@@ -333,7 +333,12 @@ html, body, #root {
   }
 }
 
-/* Dark mode gradient overrides */
+/* Dark mode styles */
+.dark-mode {
+  color: #ffffff !important;
+}
+
+/* Gradients switch to gold/yellow in dark mode */
 .dark-mode .gradient-text {
   background: linear-gradient(90deg, #ffd700 0%, #ffed4e 100%) !important;
   -webkit-background-clip: text !important;
@@ -345,41 +350,135 @@ html, body, #root {
   background: linear-gradient(90deg, #ffd700 0%, #ffed4e 100%) !important;
 }
 
-/* Ensure white text remains white in dark mode */
-.dark-mode {
-  color: #ffffff !important;
-}
-
-.dark-mode .MuiTypography-root {
-  color: #ffffff !important;
-}
-
+/* Generic MUI surfaces */
 .dark-mode .MuiPaper-root {
   background-color: #1e1e1e !important;
   color: #ffffff !important;
 }
-
-.dark-mode .MuiBox-root {
-  background-color: #121212 !important;
+.dark-mode .MuiTypography-root {
+  color: #ffffff !important;
 }
 
-/* Chat specific dark mode styles */
-.dark-mode .ChatWindow {
+/* AppBar gradient override */
+.dark-mode .MuiAppBar-root {
+  background: linear-gradient(90deg, #2575fc, #6a11cb) !important;
+}
+
+/* Buttons hover text visible */
+/* keep default outlined on dark, but keep logout button red */
+
+/* Dashboard/NewTask containers */
+.dark-mode .dashboard-container,
+.dark-mode .newtask-container {
+  background: linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 100%) !important;
+}
+
+/* Chat areas */
+.dark-mode .chat-window-bg {
   background: #121212 !important;
 }
-
-.dark-mode .ChatSidebar {
+.dark-mode .chat-sidebar-bg {
   background: #1e1e1e !important;
   border-right-color: #444 !important;
 }
 
-/* Auth layout dark mode */
+/* Chat bubbles */
+.dark-mode .chat-bubble-mine {
+  background: #b8860b !important; /* dark goldenrod */
+  color: #000 !important;
+}
+.dark-mode .chat-bubble-other {
+  background: #1e1e1e !important;
+  color: #fff !important;
+  border: 1px solid #333 !important;
+}
+
+/* Auth layout */
 .dark-mode .auth-card {
   background: #1e1e1e !important;
   color: #ffffff !important;
 }
-
 .dark-mode .auth-left {
   background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%) !important;
+  color: #000 !important;
 }
+
+/* Welcome page */
+.dark-mode .welcome_page {
+  background: linear-gradient(-45deg, #343434, #0e0e0e, #343434, #0e0e0e) !important;
+}
+
+/* Common text color override for black texts */
+.dark-mode .text-black { color: #ffffff !important; }
+
+/* Dark mode (final override) */
+.dark-mode {
+  background-color: #0f1115 !important;
+  color: #e9eef3 !important;
+}
+
+/* AppBar */
+.dark-mode .MuiAppBar-root {
+  background: linear-gradient(90deg, #2575fc, #6a11cb) !important;
+  color: #e9eef3 !important;
+}
+.dark-mode .MuiToolbar-root { color: inherit !important; }
+
+/* Surfaces */
+.dark-mode .MuiPaper-root {
+  background-color: #161a1f !important;
+  color: #e9eef3 !important;
+  border-color: #2a3038 !important;
+}
+.dark-mode .MuiDivider-root { border-color: #2a3038 !important; }
+
+/* Lists & Menus */
+.dark-mode .MuiListItemButton-root { background-color: transparent !important; color: #e9eef3 !important; }
+.dark-mode .MuiListItemButton-root.Mui-selected { background-color: #1e242b !important; }
+.dark-mode .MuiMenu-paper, .dark-mode .MuiPopover-paper {
+  background-color: #161a1f !important;
+  color: #e9eef3 !important;
+  border: 1px solid #2a3038 !important;
+}
+.dark-mode .MuiMenuItem-root:hover { background-color: #1e242b !important; }
+
+/* Inputs */
+.dark-mode .MuiOutlinedInput-root {
+  background-color: #0f1318 !important;
+  color: #e9eef3 !important;
+}
+.dark-mode .MuiOutlinedInput-notchedOutline { border-color: #2a3038 !important; }
+.dark-mode .MuiInputLabel-root { color: #aab4be !important; }
+.dark-mode input, .dark-mode textarea { color: #e9eef3 !important; }
+
+/* Buttons */
+.dark-mode .MuiButton-contained { background-color: #2563eb !important; color: #ffffff !important; }
+.dark-mode .MuiButton-contained:hover { background-color: #1d4ed8 !important; }
+.dark-mode .MuiButton-outlined { border-color: #aab4be !important; color: #e9eef3 !important; }
+.dark-mode .MuiButton-outlined:hover { background-color: #1e242b !important; }
+.dark-mode .btn-logout { background: red !important; color: #fff !important; border-color: transparent !important; }
+.dark-mode .btn-logout:hover { background: #dc2626 !important; }
+
+/* Welcome/Auth pages */
+.dark-mode .welcome_page { background: linear-gradient(180deg, #0b0d12, #0f1115) !important; }
+.dark-mode .auth-left { background: linear-gradient(135deg, #11151b, #0f1115) !important; }
+.dark-mode .auth-bg-image { filter: brightness(0.35) !important; }
+
+/* Chat */
+.dark-mode .chat-window-bg { background: #0f1115 !important; }
+/* Override inline light backgrounds in ChatWindow */
+.dark-mode .chat-window-bg [style*="background: #f7f7f7"] { background: #0f1115 !important; }
+.dark-mode .chat-window-bg [style*="background: #f0f0f0"] { background: #12161c !important; border-top: 1px solid #2a3038 !important; }
+.dark-mode .chat-bubble-mine { background: #1d4ed8 !important; color: #ffffff !important; box-shadow: none !important; }
+.dark-mode .chat-bubble-other { background: #1e242b !important; color: #e9eef3 !important; border: 1px solid #2a3038 !important; box-shadow: none !important; }
+
+/* Gradients: prefer plain text in dark mode to avoid bright pops */
+.dark-mode .gradient-text { background: none !important; -webkit-text-fill-color: #e9eef3 !important; color: #e9eef3 !important; }
+
+/* Welcome buttons */
+.dark-mode .welcome_button { background-color: #2563eb !important; color: #fff !important; }
+.dark-mode .welcome_button:hover { background-color: #1d4ed8 !important; }
+
+/* Force-convert hard-coded white backgrounds to dark surfaces */
+.dark-mode [style*="background: #fff"] { background-color: #161a1f !important; color: #e9eef3 !important; }
 

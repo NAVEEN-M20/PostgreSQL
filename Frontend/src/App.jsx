@@ -9,6 +9,7 @@ import Chat from "./components/Chat";
 import Logout from "./components/Logout";
 import { UserProvider } from "./components/UserProvider";
 import Navbar from "./components/NavBar"
+import { ThemeModeProvider } from "./components/ThemeContext.jsx";
 
 function App() {
   useEffect(() => {
@@ -25,10 +26,11 @@ function App() {
   }, []);
 
   return (
-    <UserProvider>
-      <Router>
-        {/* Navbar visible on all pages except Welcome/Login/Register */}
-        <Routes>
+    <ThemeModeProvider>
+      <UserProvider>
+        <Router>
+          {/* Navbar visible on all pages except Welcome/Login/Register */}
+          <Routes>
           <Route
             path="/"
             element={<Welcome />}
@@ -57,7 +59,8 @@ function App() {
           />
         </Routes>
       </Router>
-    </UserProvider>
+      </UserProvider>
+    </ThemeModeProvider>
   );
 }
 

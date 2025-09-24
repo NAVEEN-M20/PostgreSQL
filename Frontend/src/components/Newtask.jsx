@@ -17,7 +17,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const NewTask = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
+  const [assignedTo, setAssignedTo] = useState([]);
   const [users, setUsers] = useState([]);
   const navigate = useNavigate();
 
@@ -107,9 +107,14 @@ const NewTask = () => {
             <InputLabel id="assign-label">Assign to</InputLabel>
             <Select
               labelId="assign-label"
+              multiple
               value={assignedTo}
               label="Assign to"
               onChange={(e) => setAssignedTo(e.target.value)}
+              renderValue={(selected) => {
+                const names = users.filter(u => selected.includes(u.id)).map(u => u.name);
+                return names.join(', ');
+              }}
               required
             >
               {users.map((u) => (
