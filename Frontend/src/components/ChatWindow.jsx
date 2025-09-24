@@ -11,12 +11,10 @@ import {
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { io } from "socket.io-client";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Format dates WhatsApp-style (unchanged)
 const formatDate = (dateString) => {
   const date = new Date(dateString);
   const today = new Date();
@@ -33,7 +31,6 @@ const formatDate = (dateString) => {
   });
 };
 
-// Group messages by date (unchanged)
 const groupMessagesByDate = (messages) => {
   const grouped = [];
   let currentDate = null;
@@ -50,72 +47,49 @@ const groupMessagesByDate = (messages) => {
   return grouped;
 };
 
-const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
+const ChatWindow = ({ currentUser, otherUser, onBack, isMobile, socketRef }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const messagesRef = useRef(null);
   const inputBarRef = useRef(null);
   const theme = useTheme();
   const isMobileView = useMediaQuery(theme.breakpoints.down("md"));
-  const socketRef = useRef(null);
-
-  // measured height of the input bar (px)
   const [inputBarHeight, setInputBarHeight] = useState(72);
 
-  // Init socket once (with credentials for polling)
+  // Mark messages as read when chat window is opened or otherUser changes
   useEffect(() => {
-    if (!socketRef.current) {
-      socketRef.current = io(API_URL || "/", {
-        path: "/socket.io/",
-        withCredentials: true,
-        autoConnect: true,
-        transports: ["polling", "websocket"],
-        transportOptions: {
-          polling: {
-            withCredentials: true,
-          },
-        },
+    if (otherUser && currentUser && socketRef?.current) {
+      socketRef.current.emit("markAsRead", {
+        senderId: otherUser.id,
+        receiverId: currentUser.id
       });
-
-      socketRef.current.on("receiveMessage", (msg) =>
-        setMessages((prev) => [...prev, msg])
-      );
-      socketRef.current.on("messageSent", (msg) =>
-        setMessages((prev) => [...prev, msg])
-      );
-      socketRef.current.on("connect_error", (err) =>
-        console.error("Socket error:", err)
-      );
     }
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, []);
+  }, [otherUser, currentUser, socketRef]);
 
-  // Register user with socket after connect and when currentUser exists
+  // Listen for new messages
   useEffect(() => {
-    const s = socketRef.current;
-    if (!s) return;
+    if (!socketRef?.current) return;
 
-    const doRegister = () => {
-      if (currentUser?.id) {
-        s.emit("register", currentUser.id);
+    const socket = socketRef.current;
+    const handleReceiveMessage = (msg) => {
+      setMessages((prev) => [...prev, msg]);
+      // If this message is from the current chat user, mark it as read immediately
+      if (otherUser && msg.sender_id === otherUser.id) {
+        socket.emit("markAsRead", {
+          senderId: otherUser.id,
+          receiverId: currentUser.id
+        });
       }
     };
 
-    if (s.connected) {
-      doRegister();
-    } else {
-      s.once("connect", doRegister);
-    }
+    socket.on("receiveMessage", handleReceiveMessage);
+    socket.on("messageSent", handleReceiveMessage);
 
     return () => {
-      if (s) s.off("connect", doRegister);
+      socket.off("receiveMessage", handleReceiveMessage);
+      socket.off("messageSent", handleReceiveMessage);
     };
-  }, [currentUser]);
+  }, [otherUser, currentUser, socketRef]);
 
   // Fetch messages when otherUser changes
   useEffect(() => {
@@ -129,14 +103,21 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           withCredentials: true,
         });
         setMessages(res.data || []);
+        
+        // Mark messages as read after fetching
+        if (socketRef?.current) {
+          socketRef.current.emit("markAsRead", {
+            senderId: otherUser.id,
+            receiverId: currentUser.id
+          });
+        }
       } catch (err) {
         console.error("Error fetching messages:", err);
       }
     };
     fetchMessages();
-  }, [otherUser, currentUser]);
+  }, [otherUser, currentUser, socketRef]);
 
-  // measure input bar height and apply padding to messages area
   const measureInputHeight = () => {
     try {
       const h = inputBarRef.current ? inputBarRef.current.offsetHeight : 72;
@@ -146,26 +127,19 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
     }
   };
 
-  // measure initially and on resize/orientationchange/focus changes
   useEffect(() => {
     measureInputHeight();
     const onResize = () => {
-      // extra delay for mobile keyboard resizing behaviour
       setTimeout(measureInputHeight, 120);
     };
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
-    window.addEventListener("focusin", onResize);
-    window.addEventListener("focusout", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
-      window.removeEventListener("focusin", onResize);
-      window.removeEventListener("focusout", onResize);
     };
   }, []);
 
-  // auto-scroll when messages arrive
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -173,17 +147,21 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
   }, [messages]);
 
   const sendMessage = () => {
-    if (!text.trim() || !otherUser || !currentUser) return;
-    if (!socketRef.current) {
-      console.error("Socket not initialized");
-      return;
-    }
+    if (!text.trim() || !otherUser || !currentUser || !socketRef?.current) return;
+    
     socketRef.current.emit("sendMessage", {
       senderId: currentUser.id,
       receiverId: otherUser.id,
       message: text,
     });
     setText("");
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   const groupedMessages = groupMessagesByDate(messages);
@@ -207,7 +185,6 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         minWidth: 0,
       }}
     >
-      {/* Header */}
       <Paper
         elevation={2}
         sx={{
@@ -255,7 +232,6 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
         </Typography>
       </Paper>
 
-      {/* Messages container: add bottom padding equal to inputBarHeight + small gap */}
       <Box
         ref={messagesRef}
         sx={{
@@ -266,7 +242,6 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           minHeight: 0,
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
-          // dynamic padding bottom to never hide last message behind the input
           pb: `${inputBarHeight + 16}px`,
         }}
       >
@@ -284,8 +259,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           }
 
           const m = item;
-          const mine = m.sender_id === currentUser?.id || m.senderId === currentUser?.id;
-          const isTaskCompleted = m.message && m.message.includes("completed!!");
+          const mine = m.sender_id === currentUser?.id;
 
           return (
             <Box
@@ -293,35 +267,32 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
               sx={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: isTaskCompleted ? "center" : mine ? "flex-end" : "flex-start",
+                alignItems: mine ? "flex-end" : "flex-start",
                 mb: 1.5,
               }}
             >
               <Box
                 sx={{
                   maxWidth: "70%",
-                  bgcolor: isTaskCompleted ? "linear-gradient(90deg, #4caf50 0%, #2e7d32 50%, #1b5e20 100%)" : mine ? "#6a11cb" : "#fff",
-                  color: isTaskCompleted ? "white" : mine ? "white" : "black",
+                  bgcolor: mine ? "#6a11cb" : "#fff",
+                  color: mine ? "white" : "black",
                   px: 2,
                   py: 1,
-                  borderRadius: isTaskCompleted ? "16px" : mine ? "16px 0 16px 16px" : "0 16px 16px 16px",
+                  borderRadius: mine ? "16px 0 16px 16px" : "0 16px 16px 16px",
                   boxShadow: "0 1px 0.5px rgba(0,0,0,0.13)",
                   wordBreak: "break-word",
                 }}
               >
-                <Typography variant="body1">{m.message || m.content}</Typography>
-                {!isTaskCompleted && (
-                  <Typography variant="caption" sx={{ color: isTaskCompleted ? "#e0e0e0" : "#999", display: "block", mt: 0.5 }}>
-                    {mine ? currentUser?.name : otherUser?.name} • {m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
-                  </Typography>
-                )}
+                <Typography variant="body1">{m.message}</Typography>
+                <Typography variant="caption" sx={{ color: mine ? "#e0e0e0" : "#999", display: "block", mt: 0.5 }}>
+                  {mine ? currentUser?.name : otherUser?.name} • {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </Typography>
               </Box>
             </Box>
           );
         })}
       </Box>
 
-      {/* Input bar: sticky to bottom, measured via ref, focus scrolls messages into view */}
       <Box
         ref={inputBarRef}
         sx={{
@@ -343,25 +314,7 @@ const ChatWindow = ({ currentUser, otherUser, onBack, isMobile }) => {
           maxRows={4}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) =>
-            e.key === "Enter" && !e.shiftKey
-              ? (e.preventDefault(), sendMessage())
-              : null
-          }
-          onFocus={() => {
-            // after keyboard opens, scroll the messages area into view
-            setTimeout(() => {
-              if (messagesRef.current) {
-                messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-              }
-              // also re-measure because keyboard may have changed layout
-              measureInputHeight();
-            }, 300);
-          }}
-          onBlur={() => {
-            // re-measure after blur
-            setTimeout(measureInputHeight, 120);
-          }}
+          onKeyDown={handleKeyDown}
           sx={{
             background: "#fff",
             borderRadius: 24,

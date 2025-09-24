@@ -1,7 +1,7 @@
 import React, { memo, useCallback } from "react";
 import { Box, Typography, List, ListItemButton } from "@mui/material";
 
-const ChatSidebar = ({ users, onSelect, selectedUser, isMobile }) => {
+const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) => {
   const handleSelect = useCallback(
     (user) => onSelect(user),
     [onSelect]
@@ -44,63 +44,90 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile }) => {
               No users available
             </Typography>
           )}
-          {users.map((user) => (
-            <ListItemButton
-              key={user.id}
-              selected={selectedUser?.id === user.id}
-              onClick={() => handleSelect(user)}
-              sx={{ borderRadius: 0, borderBottom: "1px solid #f0f0f0" }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  width: "100%",
-                  py: 1,
+          {users.map((user) => {
+            const unreadCount = unreadCounts[user.id] || 0;
+            
+            return (
+              <ListItemButton
+                key={user.id}
+                selected={selectedUser?.id === user.id}
+                onClick={() => handleSelect(user)}
+                sx={{ 
+                  borderRadius: 0, 
+                  borderBottom: "1px solid #f0f0f0",
+                  position: 'relative',
                 }}
               >
                 <Box
                   sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    background:
-                      "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontWeight: "bold",
-                    fontSize: "1.2rem",
-                    mr: 2,
+                    width: "100%",
+                    py: 1,
                   }}
                 >
-                  {user.name.charAt(0).toUpperCase()}
-                </Box>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography
+                  <Box
                     sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "50%",
+                      background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
                       fontWeight: "bold",
-                      background:
-                        "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      display: "inline-block",
+                      fontSize: "1.2rem",
+                      mr: 2,
                     }}
                   >
-                    {user.name || user.email}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 0.5 }}
-                  >
-                    {user.email}
-                  </Typography>
+                    {user.name ? user.name.charAt(0).toUpperCase() : "?"}
+                  </Box>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography
+                      sx={{
+                        fontWeight: "bold",
+                        background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        display: "inline-block",
+                      }}
+                    >
+                      {user.name || user.email}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {user.email}
+                    </Typography>
+                  </Box>
+                  
+                  {/* Unread message bubble */}
+                  {unreadCount > 0 && (
+                    <Box
+                      sx={{
+                        minWidth: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Box>
+                  )}
                 </Box>
-              </Box>
-            </ListItemButton>
-          ))}
+              </ListItemButton>
+            );
+          })}
         </List>
       </Box>
     </Box>
