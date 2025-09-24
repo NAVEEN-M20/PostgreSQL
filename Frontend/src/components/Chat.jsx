@@ -18,7 +18,7 @@ const Chat = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [view, setView] = useState("sidebar");
   const [unreadCounts, setUnreadCounts] = useState({});
-  const { user, setUser } = useContext(UserContext);
+  const { user } = useContext(UserContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [socket, setSocket] = useState(null);
