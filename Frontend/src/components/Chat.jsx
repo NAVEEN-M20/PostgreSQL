@@ -94,54 +94,33 @@ const Chat = () => {
 
   // Viewport height handled globally in App.jsx
 
-  // Fetch session, users, and initial unread counts
+  // Fetch users and unread counts once user is known (from UserProvider)
   useEffect(() => {
     let mounted = true;
-
-    const fetchSessionAndUsers = async () => {
+    const run = async () => {
+      if (!user) {
+        // wait until user is available
+        return;
+      }
       try {
-        // Always get session once here (simpler flow)
-        const me = await axios.get(`${API_URL}/api/me`, { withCredentials: true });
-        if (mounted && me?.data?.user && setUser) {
-          setUser(me.data.user);
-        }
-
-        const activeUser = me?.data?.user;
-        if (!activeUser) {
-          if (mounted) {
-            setUsers([]);
-            setUnreadCounts({});
-          }
-          return;
-        }
-
-        // Fetch users and unread counts in parallel
         const [usersRes, unreadRes] = await Promise.all([
           axios.get(`${API_URL}/api/users`, { withCredentials: true }),
           axios.get(`${API_URL}/api/messages/unread-counts`, { withCredentials: true })
         ]);
-
         if (mounted) {
           setUsers(usersRes.data || []);
           setUnreadCounts(unreadRes.data || {});
-          console.log("👥 Users loaded:", usersRes.data?.length);
-          console.log("🔔 Initial unread counts:", unreadRes.data);
         }
-      } catch (err) {
-        console.error("Error initializing chat:", err);
+      } catch {
         if (mounted) {
           setUsers([]);
           setUnreadCounts({});
         }
       }
     };
-
-    fetchSessionAndUsers();
-
-    return () => {
-      mounted = false;
-    };
-  }, [setUser]);
+    run();
+    return () => { mounted = false; };
+  }, [user]);
 
   const handleSelectUser = (selectedUser) => {
     console.log("👤 User selected:", selectedUser.name);

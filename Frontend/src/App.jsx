@@ -26,8 +26,8 @@ function App() {
   }, []);
 
   return (
-    <ThemeModeProvider>
-      <UserProvider>
+    <UserProvider>
+      <ThemeModeProvider>
         <Router>
           {/* Navbar visible on all pages except Welcome/Login/Register */}
           <Routes>
@@ -59,8 +59,8 @@ function App() {
           />
         </Routes>
       </Router>
-      </UserProvider>
-    </ThemeModeProvider>
+      </ThemeModeProvider>
+    </UserProvider>
   );
 }
 

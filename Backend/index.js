@@ -336,7 +336,18 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/logout", (req, res) => {
   req.logout((err) => {
     if (err) return res.status(500).json({ error: "Error logging out" });
-    res.json({ success: true, message: "Logged out successfully" });
+    // Destroy session and clear cookie to fully log out
+    req.session.destroy((err2) => {
+      if (err2) return res.status(500).json({ error: "Error destroying session" });
+      try {
+        res.clearCookie("taskportal.sid", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        });
+      } catch {}
+      return res.json({ success: true, message: "Logged out successfully" });
+    });
   });
 });
 

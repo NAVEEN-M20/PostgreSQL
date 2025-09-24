@@ -1,10 +1,14 @@
 // Logout.jsx
-import React from "react";
+import React, { useContext } from "react";
 import { Box, Paper, Typography, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useThemeMode } from "./ThemeContext";
+import { UserContext } from "./UserContext";
 
 export default function Logout() {
   const navigate = useNavigate();
+  const { reset } = useThemeMode();
+  const { setUser } = useContext(UserContext);
 
   const handleYes = async () => {
     try {
@@ -12,6 +16,10 @@ export default function Logout() {
     } catch (e) {
       // ignore
     } finally {
+      // Clear user session in client and reset theme to light
+      try { setUser && setUser(null); } catch {}
+      try { localStorage.removeItem("theme-mode"); } catch {}
+      reset();
       navigate("/");
     }
   };

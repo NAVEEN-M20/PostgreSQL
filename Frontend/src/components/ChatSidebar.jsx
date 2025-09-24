@@ -18,6 +18,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
         flexDirection: "column",
         borderRight: isMobile ? "none" : "1.5px solid #dadada",
         background: "transparent",
+        minHeight: 0,
       }}
     >
       <Typography
@@ -38,6 +39,7 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
           scrollbarWidth: "none",
           "&::-webkit-scrollbar": { display: "none" },
           minHeight: 0,
+          pb: 3,
         }}
       >
         <List sx={{ p: 0 }}>

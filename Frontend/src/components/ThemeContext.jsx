@@ -6,14 +6,18 @@ const ThemeModeContext = createContext({ mode: "light", toggle: () => {} });
 export const ThemeModeProvider = ({ children }) => {
   const [mode, setMode] = useState("light");
 
-  // Load saved mode
+  // Initialize mode. Default to light for public pages.
   useEffect(() => {
     try {
       const saved = localStorage.getItem("theme-mode");
       if (saved === "dark" || saved === "light") {
         setMode(saved);
+      } else {
+        setMode("light");
       }
-    } catch {}
+    } catch {
+      setMode("light");
+    }
   }, []);
 
   // Apply class and persist
@@ -30,6 +34,7 @@ export const ThemeModeProvider = ({ children }) => {
     mode,
     toggle: () => setMode((m) => (m === "dark" ? "light" : "dark")),
     setMode,
+    reset: () => setMode("light"),
   }), [mode]);
 
   return (
