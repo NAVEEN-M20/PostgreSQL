@@ -78,13 +78,14 @@ function Dashboard() {
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        height: `calc(var(--vh, 1vh) * 100 - 64px)`,
         overflow: "hidden",
         p: 2,
         background: "transparent",
+        minHeight: 0,
       }}
     >
-      {/* Header Section - Fixed */}
+    
       <Box sx={{ mb: 3, textAlign: "center" }}>
         <Typography
           variant="h5"
@@ -131,7 +132,8 @@ function Dashboard() {
           borderRadius: 3,
           boxShadow: "none",
           overflow: "hidden",
-          background: "transparent"
+          background: "transparent",
+          minHeight: 0,
         }}
       >
         {/* Tasks Header with gradient and margin bottom */}
@@ -157,6 +159,8 @@ function Dashboard() {
           sx={{ 
             flexGrow: 1, 
             overflow: "auto",
+            minHeight: 0,
+            pb: 3,
             "&::-webkit-scrollbar": {
               display: "none",
             },
