@@ -9,7 +9,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
-import { useThemeMode } from './ThemeContext';
+import { useThemeMode } from './UseThemeMode';
 
 
 export default function Navbar() {

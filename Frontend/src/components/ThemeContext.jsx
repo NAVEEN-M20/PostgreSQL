@@ -1,9 +1,7 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { ThemeModeContext } from "./ThemeModeContext";
 
-// Simple theme mode context to toggle light/dark
-const ThemeModeContext = createContext({ mode: "light", toggle: () => {} });
-
-export const ThemeModeProvider = ({ children }) => {
+const ThemeModeProvider = ({ children }) => {
   const [mode, setMode] = useState("light");
 
   // Initialize mode. Default to light for public pages.
@@ -24,7 +22,9 @@ export const ThemeModeProvider = ({ children }) => {
   useEffect(() => {
     try {
       localStorage.setItem("theme-mode", mode);
-    } catch {}
+    } catch (e){
+      console.log(e);
+    }
     const cls = "dark-mode";
     const body = document.body;
     if (mode === "dark") body.classList.add(cls); else body.classList.remove(cls);
@@ -42,4 +42,4 @@ export const ThemeModeProvider = ({ children }) => {
   );
 };
 
-export const useThemeMode = () => useContext(ThemeModeContext);
+export default ThemeModeProvider;

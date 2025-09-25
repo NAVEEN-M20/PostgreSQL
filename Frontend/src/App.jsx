@@ -4,12 +4,12 @@ import Welcome from "./components/Welcome"
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
-import NewTask from "./components/Newtask";
+import NewTask from "./components/NewTask";
 import Chat from "./components/Chat";
 import Logout from "./components/Logout";
 import { UserProvider } from "./components/UserProvider";
-import Navbar from "./components/NavBar"
-import { ThemeModeProvider } from "./components/ThemeContext.jsx";
+import NavBar from "./components/NavBar"
+import ThemeModeProvider from "./components/ThemeContext.jsx";
 
 function App() {
   useEffect(() => {
@@ -47,7 +47,7 @@ function App() {
             path="/*"
             element={
               <>
-                <Navbar />
+                <NavBar />
                 <Routes>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/newtask" element={<NewTask />} />

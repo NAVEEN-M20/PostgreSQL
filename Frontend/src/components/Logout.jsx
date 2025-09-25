@@ -2,7 +2,7 @@
 import React, { useContext } from "react";
 import { Box, Paper, Typography, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { useThemeMode } from "./ThemeContext";
+import { useThemeMode } from "./UseThemeMode";
 import { UserContext } from "./UserContext";
 
 export default function Logout() {
@@ -14,11 +14,11 @@ export default function Logout() {
     try {
       await fetch(import.meta.env.VITE_API_URL + "/api/logout", { method: "POST", credentials: "include" });
     } catch (e) {
-      // ignore
+      console.log(e);
     } finally {
       // Clear user session in client and reset theme to light
-      try { setUser && setUser(null); } catch {}
-      try { localStorage.removeItem("theme-mode"); } catch {}
+      try { setUser && setUser(null); } catch(e){console.log(e);}
+      try { localStorage.removeItem("theme-mode"); } catch (e){console.log(e);}
       reset();
       navigate("/");
     }
