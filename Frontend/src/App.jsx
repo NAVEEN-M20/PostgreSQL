@@ -4,7 +4,7 @@ import Welcome from "./components/Welcome"
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
-import NewTask from "./components/NewTask";
+import NewTask from "./components/NewTask.jsx"; 
 import Chat from "./components/Chat";
 import Logout from "./components/Logout";
 import { UserProvider } from "./components/UserProvider";
