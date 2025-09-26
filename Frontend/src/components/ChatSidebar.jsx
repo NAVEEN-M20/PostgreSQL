@@ -1,11 +1,38 @@
-import React, { memo, useCallback } from "react";
-import { Box, Typography, List, ListItemButton } from "@mui/material";
+import React, { memo, useState, useCallback } from "react";
+import {
+  Box,
+  Typography,
+  List,
+  ListItemButton,
+  TextField,
+  InputAdornment,
+  IconButton,
+  useTheme,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) => {
+  const theme = useTheme();
   const handleSelect = useCallback(
     (user) => onSelect(user),
     [onSelect]
   );
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Filter users by search
+  const filteredUsers = users.filter((user) =>
+    (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // Cancel search
+  const handleCancelSearch = () => {
+    setSearchQuery("");
+    setSearchFocused(false);
+  };
 
   return (
     <Box
@@ -21,17 +48,56 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
         minHeight: 0,
       }}
     >
+      {/* Header */}
       <Typography
         variant="h6"
         sx={{
           p: 2,
           fontWeight: "bolder",
           borderBottom: "1px solid",
-          borderColor: 'divider',
+          borderColor: "divider",
         }}
       >
         Chats
       </Typography>
+
+      {/* Search Bar */}
+      <Box sx={{ px: 2, py: 1, borderBottom: "1px solid #eee" }}>
+        <TextField
+          fullWidth
+          placeholder="Select users..."
+          size="small"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => {
+            if (!searchQuery) setSearchFocused(false);
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <IconButton
+                  size="small"
+                  onClick={searchFocused ? handleCancelSearch : undefined}
+                  sx={{ color: "grey"}}
+                >
+                  {searchFocused ? <ArrowBackIcon /> : <SearchIcon />}
+                </IconButton>
+              </InputAdornment>
+            ),
+            sx: {
+              py: 1.2, 
+              borderRadius: "24px", 
+              backgroundColor: theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
+              "& .MuiInputBase-input": {
+                color: theme.palette.mode === "dark" ? "#fff" : "#000",
+              },
+            },
+          }}
+        />
+      </Box>
+
+      {/* Scrollable user list */}
       <Box
         sx={{
           flex: 1,
@@ -43,96 +109,96 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
         }}
       >
         <List sx={{ p: 0 }}>
-          {users.length === 0 && (
-            <Typography sx={{ p: 2, color: "text.secondary" }}>
-              No users available
+          {filteredUsers.length === 0 ? (
+            <Typography sx={{ p: 2, color: "text.secondary", textAlign: "center" }}>
+              No user found
             </Typography>
-          )}
-          {users.map((user) => {
-            const unreadCount = unreadCounts[user.id] || 0;
-            
-            return (
-              <ListItemButton
-                key={user.id}
-                selected={selectedUser?.id === user.id}
-                onClick={() => handleSelect(user)}
-                sx={{ 
-                  borderRadius: 0, 
-                  borderBottom: "1px solid #f0f0f0",
-                  position: 'relative',
-                }}
-              >
-                <Box
+          ) : (
+            filteredUsers.map((user) => {
+              const unreadCount = unreadCounts[user.id] || 0;
+
+              return (
+                <ListItemButton
+                  key={user.id}
+                  selected={selectedUser?.id === user.id}
+                  onClick={() => handleSelect(user)}
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    width: "100%",
-                    py: 1,
+                    borderRadius: 0,
+                    borderBottom: "1px solid #f0f0f0",
+                    position: "relative",
                   }}
                 >
                   <Box
                     sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: "50%",
-                      background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontWeight: "bold",
-                      fontSize: "1.2rem",
-                      mr: 2,
+                      width: "100%",
+                      py: 1,
                     }}
                   >
-                    {user.name ? user.name.charAt(0).toUpperCase() : "?"}
-                  </Box>
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography
-                      className="gradient-text"
-                      sx={{
-                        fontWeight: "bold",
-                        background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        display: "inline-block",
-                      }}
-                    >
-                      {user.name || user.email}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 0.5 }}
-                    >
-                      {user.email}
-                    </Typography>
-                  </Box>
-                  
-                  {/* Unread message bubble */}
-                  {unreadCount > 0 && (
+                    {/* User Avatar */}
                     <Box
                       sx={{
-                        minWidth: '20px',
-                        height: '20px',
-                        borderRadius: '50%',
-                        background: '#1d4ed8',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        marginLeft: 'auto',
+                        width: 48,
+                        height: 48,
+                        borderRadius: "50%",
+                        background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "1.2rem",
+                        mr: 2,
                       }}
                     >
-                      {unreadCount > 99 ? '99+' : unreadCount}
+                      {user.name ? user.name.charAt(0).toUpperCase() : "?"}
                     </Box>
-                  )}
-                </Box>
-              </ListItemButton>
-            );
-          })}
+
+                    {/* User Info */}
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography
+                        className="gradient-text"
+                        sx={{
+                          fontWeight: "bold",
+                          background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          display: "inline-block",
+                        }}
+                      >
+                        {user.name || user.email}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {user.email}
+                      </Typography>
+                    </Box>
+
+                    {/* Unread Bubble */}
+                    {unreadCount > 0 && (
+                      <Box
+                        sx={{
+                          minWidth: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: "#1d4ed8",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "white",
+                          fontSize: "0.75rem",
+                          fontWeight: "bold",
+                          marginLeft: "auto",
+                        }}
+                      >
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </Box>
+                    )}
+                  </Box>
+                </ListItemButton>
+              );
+            })
+          )}
         </List>
       </Box>
     </Box>
