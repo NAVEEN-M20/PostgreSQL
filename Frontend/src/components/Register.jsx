@@ -6,12 +6,14 @@ import {
   Link as MuiLink,
   IconButton,
   InputAdornment,
+  Alert,
+  Collapse,
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt"; // Icon for Register form
+import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -19,44 +21,51 @@ const API_URL = import.meta.env.VITE_API_URL;
 const Register = () => {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const navigate = useNavigate();
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const togglePasswordVisibility = () => setShowPassword(p => !p);
+  const togglePasswordVisibility = () => setShowPassword((p) => !p);
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
     try {
-      const res = await axios.post(`${API_URL}/api/register`, form);
+      const res = await axios.post(`${API_URL}/api/register`, form, {
+        withCredentials: true,
+      });
       if (res.data?.success) {
-        alert("Registration successful! Please log in.");
-        navigate("/login");
+        setSuccess("Registration successful! Redirecting to login...");
+        setTimeout(() => navigate("/login"), 1500);
       } else {
-        alert(res.data.error || "Registration failed");
+        setError(res.data.error || "Registration failed");
       }
-    } catch {
-      alert("Server error while registering");
+    } catch (err){
+      const msg = err.response?.data?.error || "Server error while logging in";
+      setError(msg);
     }
   };
 
   return (
     <AuthLayout
-     title={
-    <Typography
-      variant="h5"
-      sx={{
-        fontWeight: 600,
-        mb: 3,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",   
-        gap: 1,
-        width: "100%",             
-        textAlign: "center",        
-      }}
-    >
+      title={
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 600,
+            mb: 3,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+            width: "100%",
+            textAlign: "center",
+          }}
+        >
           <PersonAddAltIcon sx={{ fontSize: 28 }} />
           Register
         </Typography>
@@ -64,6 +73,26 @@ const Register = () => {
       description="Manage your projects and tasks effortlessly with Task Portal."
     >
       <form onSubmit={handleRegister} noValidate>
+        {/* Error & Success Alerts */}
+        <Collapse in={!!error}>
+          <Alert
+            severity="error"
+            sx={{ mb: 2, borderRadius: "10px" }}
+            onClose={() => setError("")}
+          >
+            {error}
+          </Alert>
+        </Collapse>
+        <Collapse in={!!success}>
+          <Alert
+            severity="success"
+            sx={{ mb: 2, borderRadius: "10px" }}
+            onClose={() => setSuccess("")}
+          >
+            {success}
+          </Alert>
+        </Collapse>
+
         <TextField
           label="Name"
           name="name"
@@ -82,8 +111,15 @@ const Register = () => {
           onChange={handleChange}
           fullWidth
           required
+          error={!!form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)}
+          helperText={
+            !!form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+              ? "Enter a valid email (e.g., demo@gmail.com)"
+              : ""
+          }
           sx={{ mb: 2, background: "#fafbff", borderRadius: "10px" }}
         />
+
         <TextField
           label="Password"
           name="password"
@@ -129,7 +165,11 @@ const Register = () => {
         </Button>
         <Typography align="center">
           Already registered?{" "}
-          <MuiLink component={Link} to="/login" sx={{ color: "green" ,textDecoration:"none",ml:15}}>
+          <MuiLink
+            component={Link}
+            to="/login"
+            sx={{ color: "green", textDecoration: "none", ml: 1 }}
+          >
             Login
           </MuiLink>
         </Typography>

@@ -6,6 +6,8 @@ import {
   Link as MuiLink,
   IconButton,
   InputAdornment,
+  Alert,
+  Collapse,
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -20,49 +22,52 @@ const API_URL = import.meta.env.VITE_API_URL;
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { setUser } = useContext(UserContext);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const togglePasswordVisibility = () => setShowPassword(p => !p);
+  const togglePasswordVisibility = () => setShowPassword((p) => !p);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const res = await axios.post(
         `${API_URL}/api/login`,
-        { username: form.email, password: form.password },
+        { email: form.email, password: form.password }, // ✅ fixed to match backend
         { withCredentials: true }
       );
+
       if (res.data?.success) {
         setUser(res.data.user);
         navigate("/dashboard");
       } else {
-        alert(res.data.error || "Login failed");
+        setError(res.data.error || "Login failed"); // use MUI Snackbar/Alert
       }
-    } catch {
-      alert("Server error while logging in");
+    } catch (err) {
+      const msg = err.response?.data?.error || "Server error while logging in";
+      setError(msg); // show proper error from backend
     }
   };
 
   return (
     <AuthLayout
-     title={
-    <Typography
-      variant="h5"
-      sx={{
-        fontWeight: 600,
-        mb: 3,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",   
-        gap: 1,
-        width: "100%",              
-        textAlign: "center",      
-      }}
-    >
+      title={
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 600,
+            mb: 3,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+            width: "100%",
+            textAlign: "center",
+          }}
+        >
           <AccountCircleIcon sx={{ fontSize: 28 }} />
           Login
         </Typography>
@@ -70,6 +75,17 @@ const Login = () => {
       description="Welcome back! Please login to continue managing your projects seamlessly."
     >
       <form onSubmit={handleLogin} noValidate>
+        {/* Error Alert */}
+        <Collapse in={!!error}>
+          <Alert
+            severity="error"
+            sx={{ mb: 2, borderRadius: "10px" }}
+            onClose={() => setError("")}
+          >
+            {error}
+          </Alert>
+        </Collapse>
+
         <TextField
           label="Email"
           name="email"
@@ -79,8 +95,15 @@ const Login = () => {
           fullWidth
           required
           autoFocus
+          error={!!form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)}
+          helperText={
+            !!form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+              ? "Enter a valid email (e.g., demo@gmail.com)"
+              : ""
+          }
           sx={{ mb: 2, background: "#fafbff", borderRadius: "10px" }}
         />
+
         <TextField
           label="Password"
           name="password"
@@ -125,8 +148,12 @@ const Login = () => {
           Login
         </Button>
         <Typography align="center">
-          Don't have an account?{" "}
-          <MuiLink component={Link} to="/register" sx={{ color: "green" ,textDecoration:"none",ml:10}}>
+          Don&apos;t have an account?{" "}
+          <MuiLink
+            component={Link}
+            to="/register"
+            sx={{ color: "green", textDecoration: "none", ml: 1 }}
+          >
             Register
           </MuiLink>
         </Typography>
