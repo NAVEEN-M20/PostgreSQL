@@ -10,6 +10,7 @@ import env from "dotenv";
 import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
+import validate from "validate.js";
 
 // ----------------- CONFIG -----------------
 const app = express();
@@ -88,12 +89,12 @@ const getUnreadCounts = async (userId) => {
        GROUP BY sender_id`,
       [userId]
     );
-    
+
     const unreadCounts = {};
-    result.rows.forEach(row => {
+    result.rows.forEach((row) => {
       unreadCounts[row.sender_id] = parseInt(row.count);
     });
-    
+
     return unreadCounts;
   } catch (err) {
     console.error("Error fetching unread counts:", err);
@@ -105,7 +106,7 @@ const getUnreadCounts = async (userId) => {
 const sendUnreadCounts = async (userId) => {
   try {
     const unreadCounts = await getUnreadCounts(userId);
-    
+
     if (onlineUsers[userId]) {
       io.to(onlineUsers[userId]).emit("unreadCounts", unreadCounts);
     }
@@ -120,7 +121,7 @@ io.on("connection", (socket) => {
   socket.on("register", async (userId) => {
     onlineUsers[userId] = socket.id;
     console.log("✅ Registered user:", userId);
-    
+
     // Send initial unread counts when user registers
     await sendUnreadCounts(userId);
   });
@@ -141,10 +142,9 @@ io.on("connection", (socket) => {
 
       // Update unread counts for receiver
       await sendUnreadCounts(receiverId);
-      
+
       // Ack to sender
       socket.emit("messageSent", newMessage);
-      
     } catch (err) {
       console.error("❌ Error saving message:", err);
       socket.emit("error", { message: "Message save failed" });
@@ -159,11 +159,10 @@ io.on("connection", (socket) => {
         "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false",
         [senderId, receiverId]
       );
-      
+
       // Update unread counts for both users
       await sendUnreadCounts(receiverId);
       await sendUnreadCounts(senderId);
-      
     } catch (err) {
       console.error("❌ Error marking messages as read:", err);
     }
@@ -203,11 +202,13 @@ app.get("/api/dashboard", async (req, res) => {
 // ---- Get users ----
 app.get("/api/users", async (req, res) => {
   try {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.isAuthenticated())
+      return res.status(401).json({ error: "Unauthorized" });
 
-    const users = await db.query("SELECT id, name, email FROM users WHERE id != $1", [
-      req.user.id,
-    ]);
+    const users = await db.query(
+      "SELECT id, name, email FROM users WHERE id != $1",
+      [req.user.id]
+    );
     res.json(users.rows);
   } catch (err) {
     console.error(err);
@@ -217,28 +218,34 @@ app.get("/api/users", async (req, res) => {
 
 // ---- Create Task ----
 app.post("/api/task/new", async (req, res) => {
-  if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.isAuthenticated())
+    return res.status(401).json({ error: "Unauthorized" });
 
   const { title, description, assigned_to } = req.body;
   try {
     // Normalize to array
-    const assignees = Array.isArray(assigned_to) ? assigned_to : [assigned_to].filter(Boolean);
+    const assignees = Array.isArray(assigned_to)
+      ? assigned_to
+      : [assigned_to].filter(Boolean);
     if (assignees.length === 0) {
       return res.status(400).json({ error: "No assignees provided" });
     }
 
-    await db.query('BEGIN');
+    await db.query("BEGIN");
     for (const to of assignees) {
       await db.query(
         "INSERT INTO tasks (title, description, assigned_by, assigned_to) VALUES ($1, $2, $3, $4)",
         [title, description, req.user.id, to]
       );
     }
-    await db.query('COMMIT');
+    await db.query("COMMIT");
 
-    res.json({ success: true, message: `Task created for ${assignees.length} user(s)` });
+    res.json({
+      success: true,
+      message: `Task created for ${assignees.length} user(s)`,
+    });
   } catch (err) {
-    await db.query('ROLLBACK');
+    await db.query("ROLLBACK");
     console.error(err);
     res.status(500).json({ error: "Error creating task(s)" });
   }
@@ -246,7 +253,8 @@ app.post("/api/task/new", async (req, res) => {
 
 // ---- Delete Task ----
 app.delete("/api/task/:id", async (req, res) => {
-  if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.isAuthenticated())
+    return res.status(401).json({ error: "Unauthorized" });
 
   try {
     await db.query("DELETE FROM tasks WHERE id = $1 AND assigned_to = $2", [
@@ -264,7 +272,9 @@ app.delete("/api/task/:id", async (req, res) => {
 passport.use(
   new Strategy(async function verify(username, password, cb) {
     try {
-      const result = await db.query("SELECT * FROM users WHERE email = $1", [username]);
+      const result = await db.query("SELECT * FROM users WHERE email = $1", [
+        username,
+      ]);
       if (result.rows.length === 0) return cb(null, false);
 
       const user = result.rows[0];
@@ -282,17 +292,39 @@ passport.use(
 passport.serializeUser((user, cb) => cb(null, user.id));
 passport.deserializeUser(async (id, cb) => {
   try {
-    const result = await db.query("SELECT id, name, email FROM users WHERE id = $1", [id]);
+    const result = await db.query(
+      "SELECT id, name, email FROM users WHERE id = $1",
+      [id]
+    );
     cb(null, result.rows[0]);
   } catch (err) {
     cb(err);
   }
 });
 
+// ---- Login ----
 app.post("/api/login", (req, res, next) => {
+  const { email, password } = req.body;
+
+  // Validate email + password
+  const constraints = {
+    email: { presence: true, email: true },
+    password: { presence: true },
+  };
+  const validation = validate({ email, password }, constraints);
+
+  if (validation) {
+    return res
+      .status(400)
+      .json({ success: false, error: validation.email?.[0] || "Invalid input" });
+  }
+
   passport.authenticate("local", (err, user, info) => {
     if (err) return next(err);
-    if (!user) return res.status(400).json({ success: false, error: "Invalid credentials" });
+    if (!user)
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid credentials" });
 
     req.login(user, (err) => {
       if (err) return next(err);
@@ -302,16 +334,38 @@ app.post("/api/login", (req, res, next) => {
   })(req, res, next);
 });
 
+// ---- Register ----
 app.post("/api/register", async (req, res) => {
   const { name, email, password } = req.body;
 
+  // Validate name, email, password
+  const constraints = {
+    name: { presence: true },
+    email: { presence: true, email: true },
+    password: { presence: true, length: { minimum: 7 } },
+  };
+  const validation = validate({ name, email, password }, constraints);
+
+  if (validation) {
+    const firstError =
+      validation.name?.[0] ||
+      validation.email?.[0] ||
+      validation.password?.[0] ||
+      "Invalid input";
+    return res.status(400).json({ success: false, error: firstError });
+  }
+
   try {
-    const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [
+      email,
+    ]);
     if (checkResult.rows.length > 0)
       return res.status(400).json({ error: "User already exists" });
 
     const hash = await new Promise((resolve, reject) =>
-      bcrypt.hash(password, saltRounds, (err, hashed) => (err ? reject(err) : resolve(hashed)))
+      bcrypt.hash(password, saltRounds, (err, hashed) =>
+        err ? reject(err) : resolve(hashed)
+      )
     );
 
     const result = await db.query(
@@ -323,12 +377,14 @@ app.post("/api/register", async (req, res) => {
     req.login(user, (err) => {
       if (err) {
         console.error("Login after register failed:", err);
-        return res.status(500).json({ error: "Registration succeeded but login failed" });
+        return res
+          .status(500)
+          .json({ error: "Registration succeeded but login failed" });
       }
       res.json({ success: true, user });
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -338,7 +394,8 @@ app.post("/api/logout", (req, res) => {
     if (err) return res.status(500).json({ error: "Error logging out" });
     // Destroy session and clear cookie to fully log out
     req.session.destroy((err2) => {
-      if (err2) return res.status(500).json({ error: "Error destroying session" });
+      if (err2)
+        return res.status(500).json({ error: "Error destroying session" });
       try {
         res.clearCookie("taskportal.sid", {
           httpOnly: true,
@@ -355,8 +412,9 @@ app.post("/api/logout", (req, res) => {
 // Get unread counts for all users
 app.get("/api/messages/unread-counts", async (req, res) => {
   try {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
-    
+    if (!req.isAuthenticated())
+      return res.status(401).json({ error: "Unauthorized" });
+
     const unreadCounts = await getUnreadCounts(req.user.id);
     res.json(unreadCounts);
   } catch (err) {
@@ -367,7 +425,8 @@ app.get("/api/messages/unread-counts", async (req, res) => {
 
 app.get("/api/messages/:otherUserId", async (req, res) => {
   try {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.isAuthenticated())
+      return res.status(401).json({ error: "Unauthorized" });
 
     const { otherUserId } = req.params;
     const result = await db.query(

@@ -23,11 +23,12 @@
     "express-session": "^1.18.2",
     "http": "^0.0.1-security",
     "ioredis": "^5.7.0",
-    "package.json": "^2.0.1",
+    "package.json": "^0.0.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "validate": "^5.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
