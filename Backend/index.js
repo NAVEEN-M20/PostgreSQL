@@ -270,23 +270,26 @@ app.delete("/api/task/:id", async (req, res) => {
 
 // ----------------- AUTH -----------------
 passport.use(
-  new Strategy(async function verify(username, password, cb) {
-    try {
-      const result = await db.query("SELECT * FROM users WHERE email = $1", [
-        username,
-      ]);
-      if (result.rows.length === 0) return cb(null, false);
+  new Strategy(
+    { usernameField: "email" },
+    async function verify(email, password, cb) {
+      try {
+        const result = await db.query("SELECT * FROM users WHERE email = $1", [
+          email,
+        ]);
+        if (result.rows.length === 0) return cb(null, false);
 
-      const user = result.rows[0];
-      bcrypt.compare(password, user.password, (err, valid) => {
-        if (err) return cb(err);
-        return valid ? cb(null, user) : cb(null, false);
-      });
-    } catch (err) {
-      console.error(err);
-      return cb(err);
+        const user = result.rows[0];
+        bcrypt.compare(password, user.password, (err, valid) => {
+          if (err) return cb(err);
+          return valid ? cb(null, user) : cb(null, false);
+        });
+      } catch (err) {
+        console.error(err);
+        return cb(err);
+      }
     }
-  })
+  )
 );
 
 passport.serializeUser((user, cb) => cb(null, user.id));
