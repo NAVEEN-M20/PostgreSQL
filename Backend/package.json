@@ -28,7 +28,7 @@
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
     "socket.io": "^4.8.1",
-    "validate": "^5.2.0"
+    "validate.js": "^0.13.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
