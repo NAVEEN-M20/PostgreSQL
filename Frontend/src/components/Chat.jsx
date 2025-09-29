@@ -23,6 +23,28 @@ const Chat = ({ setUnreadCounts }) => {
   const [socket, setSocket] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Sync with URL search params for back/forward navigation
+  useEffect(() => {
+    const uid = searchParams.get("uid");
+    if (uid) {
+      const userToSelect = users.find((u) => u.id === parseInt(uid, 10));
+      if (userToSelect && userToSelect.id !== selectedUser?.id) {
+        setSelectedUser(userToSelect);
+        if (isMobile) {
+          setView("chat");
+        }
+      }
+    } else {
+      // If no uid, go back to sidebar view
+      if (selectedUser !== null) {
+        setSelectedUser(null);
+      }
+      if (isMobile) {
+        setView("sidebar");
+      }
+    }
+  }, [searchParams, users, isMobile]);
+
   // Sync local unread counts to Navbar
   useEffect(() => {
     if (setUnreadCounts) setUnreadCounts(unreadCountsLocal);
@@ -49,10 +71,14 @@ const Chat = ({ setUnreadCounts }) => {
     const handleUnreadCounts = (counts) => setUnreadCountsLocal(counts);
 
     const handleReceiveMessage = (message) => {
-      if (message.sender_id && message.sender_id !== user?.id && message.sender_id !== selectedUser?.id) {
-        setUnreadCountsLocal(prev => ({
+      if (
+        message.sender_id &&
+        message.sender_id !== user?.id &&
+        message.sender_id !== selectedUser?.id
+      ) {
+        setUnreadCountsLocal((prev) => ({
           ...prev,
-          [message.sender_id]: (prev[message.sender_id] || 0) + 1
+          [message.sender_id]: (prev[message.sender_id] || 0) + 1,
         }));
       }
     };
@@ -74,7 +100,9 @@ const Chat = ({ setUnreadCounts }) => {
       try {
         const [usersRes, unreadRes] = await Promise.all([
           axios.get(`${API_URL}/api/users`, { withCredentials: true }),
-          axios.get(`${API_URL}/api/messages/unread-counts`, { withCredentials: true })
+          axios.get(`${API_URL}/api/messages/unread-counts`, {
+            withCredentials: true,
+          }),
         ]);
         if (mounted) {
           setUsers(usersRes.data || []);
@@ -88,7 +116,9 @@ const Chat = ({ setUnreadCounts }) => {
       }
     };
     run();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   const handleSelectUser = (selectedUser) => {
@@ -97,8 +127,11 @@ const Chat = ({ setUnreadCounts }) => {
     if (isMobile) setView("chat");
 
     if (socket && user?.id && selectedUser?.id) {
-      socket.emit("markAsRead", { senderId: selectedUser.id, receiverId: user.id });
-      setUnreadCountsLocal(prev => ({ ...prev, [selectedUser.id]: 0 }));
+      socket.emit("markAsRead", {
+        senderId: selectedUser.id,
+        receiverId: user.id,
+      });
+      setUnreadCountsLocal((prev) => ({ ...prev, [selectedUser.id]: 0 }));
     }
   };
 
@@ -142,7 +175,13 @@ const Chat = ({ setUnreadCounts }) => {
       {!isMobile && !selectedUser && (
         <Box
           className="chat-window-bg"
-          sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent" }}
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+          }}
         >
           <Typography variant="h6" color="text.secondary">
             Select a user to start chatting
