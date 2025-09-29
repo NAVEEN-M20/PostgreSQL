@@ -21,7 +21,7 @@ const Chat = ({ setUnreadCounts }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [socket, setSocket] = useState(null);
-  const [setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Sync local unread counts to Navbar
   useEffect(() => {
