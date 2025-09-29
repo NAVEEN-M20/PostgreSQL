@@ -1,40 +1,45 @@
 import React, { useState } from "react";
-import AppBar from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  IconButton,
+  Menu,
+  MenuItem,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Box, IconButton, Menu, MenuItem, useMediaQuery, useTheme } from "@mui/material";
-import LogoutIcon from '@mui/icons-material/Logout';
-import MenuIcon from '@mui/icons-material/Menu';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import { useThemeMode } from './UseThemeMode';
+import LogoutIcon from "@mui/icons-material/Logout";
+import MenuIcon from "@mui/icons-material/Menu";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import { useThemeMode } from "./UseThemeMode";
+import NotificationBubble from "./NotificationBubble";
 
-
-export default function Navbar() {
+export default function Navbar({ unreadCounts }) {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
   const { mode, toggle } = useThemeMode();
 
+  // Total unread count
+  const totalUnread = Object.values(unreadCounts || {}).reduce(
+    (a, b) => a + b,
+    0
+  );
+
   // Hide Navbar on Welcome/Login/Register
   const hideOn = ["/", "/login", "/register"];
-  if (hideOn.includes(location.pathname)) {
-    return null;
-  }
+  if (hideOn.includes(location.pathname)) return null;
 
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
   const handleMenuNavigation = (path) => {
     navigate(path);
     handleMenuClose();
@@ -56,29 +61,44 @@ export default function Navbar() {
         >
           TaskPortal
         </Typography>
-        <IconButton color="inherit" onClick={toggle} sx={{ ml: 1, mr: 'auto' }} aria-label="toggle theme">
-          {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+
+        <IconButton
+          color="inherit"
+          onClick={toggle}
+          sx={{ ml: 1, mr: "auto" }}
+          aria-label="toggle theme"
+        >
+          {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
         </IconButton>
-        
+
         {isMobile ? (
           <>
-            <IconButton
-              color="inherit"
-              onClick={handleMenuOpen}
-              aria-label="menu"
-              aria-controls="navbar-menu"
-              aria-haspopup="true"
-            >
-              <MenuIcon />
-            </IconButton>
+            <Box sx={{ position: "relative" }}>
+              <IconButton
+                color="inherit"
+                onClick={handleMenuOpen}
+                aria-label="menu"
+                aria-controls="navbar-menu"
+                aria-haspopup="true"
+              >
+                <MenuIcon />
+              </IconButton>
+              <NotificationBubble
+                count={totalUnread}
+                size={18}
+                sx={{
+                  position: "absolute",
+                  bottom: 0,
+                  right: 0,
+                }}
+              />
+            </Box>
+
             <Menu
               id="navbar-menu"
               anchorEl={anchorEl}
               open={menuOpen}
               onClose={handleMenuClose}
-              MenuListProps={{
-                'aria-labelledby': 'menu-button',
-              }}
             >
               <MenuItem onClick={() => handleMenuNavigation("/dashboard")}>
                 Dashboard
@@ -87,21 +107,22 @@ export default function Navbar() {
                 New Task
               </MenuItem>
               <MenuItem onClick={() => handleMenuNavigation("/chat")}>
-                Chat
+                Chat {totalUnread > 0 && `(${totalUnread})`}
               </MenuItem>
-                <MenuItem onClick={() => handleMenuNavigation("/logout")}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
+
+              <MenuItem
+                onClick={() => handleMenuNavigation("/logout")}
+                sx={{
+                  color: "red",
+                  fontWeight: "bold",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
                     backgroundColor: "red",
                     color: "white",
-                    padding: "5px 10px",
-                    borderRadius: "5px",
-                  }}
-                >
-                  Logout <LogoutIcon sx={{ ml: 1, fontSize: 15 }} />
-                </Box>
+                  },
+                }}
+              >
+                Logout <LogoutIcon sx={{ ml: 1, fontSize: 15 }} />
               </MenuItem>
             </Menu>
           </>
@@ -113,21 +134,28 @@ export default function Navbar() {
             <Button color="inherit" onClick={() => navigate("/newtask")}>
               New Task
             </Button>
-            <Button color="inherit" onClick={() => navigate("/chat")}>
-              Chat
-            </Button>
+            <Box sx={{ position: "relative" }}>
+              <Button color="inherit" onClick={() => navigate("/chat")}>
+                Chat
+              </Button>
+              <NotificationBubble
+                count={totalUnread}
+                size={16}
+                sx={{ position: "absolute", bottom: 0, right: 0 }}
+              />
+            </Box>
             <Button
-              className="btn-logout"
-              variant="outlined"
+              color="inherit"
+              onClick={() => navigate("/logout")}
               sx={{
-                color: "white",
-                background: "red",
+                color: "red",
+                fontWeight: "bold",
+                transition: "all 0.3s ease",
                 "&:hover": {
-                  borderColor: "#ddd",
-                  background: "rgba(255,255,255,0.1)",
+                  backgroundColor: "red",
+                  color: "white",
                 },
               }}
-              onClick={() => navigate("/logout")}
             >
               Logout <LogoutIcon sx={{ ml: 1, fontSize: 15 }} />
             </Button>

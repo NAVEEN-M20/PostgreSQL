@@ -1,69 +1,66 @@
-import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Link} from "react-router-dom";
-import { AppBar, Toolbar, Typography, Button, Box } from "@mui/material";
-import Login from "./Login";
-import Register from "./Register";
-import Dashboard from "./Dashboard";
-import Newtask from "./Newtask";
-import Chat from "./Chat"
-const API_URL = import.meta.env.VITE_API_URL;
+import React, { useEffect, useState } from "react";
+import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import Welcome from "./components/Welcome"
+import Login from "./components/Login";
+import Register from "./components/Register";
+import Dashboard from "./components/Dashboard";
+import NewTask from "./components/NewTask.jsx"; 
+import Chat from "./components/Chat";
+import Logout from "./components/Logout";
+import { UserProvider } from "./components/UserProvider";
+import NavBar from "./components/NavBar"
+import ThemeModeProvider from "./components/ThemeContext.jsx";
 
-const App = () => {
-  const [user, setUser] = useState(null);
+function App() {
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
-  // On mount, check if user is logged in
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/dashboard`, { credentials: "include" });
-        const data = await res.json();
-        if (data.user) setUser(data.user);
-      } catch (err){
-        console.log("error fetching user:", err.message);
-      }
+    const setVh = () => {
+      document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
     };
-    checkUser();
+    setVh();
+    window.addEventListener("resize", setVh);
+    window.addEventListener("orientationchange", setVh);
+    return () => {
+      window.removeEventListener("resize", setVh);
+      window.removeEventListener("orientationchange", setVh);
+    };
   }, []);
 
-  const navItems = [
-    { label: "Dashboard", path: "/dashboard" },
-    { label: "Assign Task", path: "/newtask" },
-    { label: "Chat", path: "/chat" },
-    { label: "Login", path: "/login" },
-    { label: "Register", path: "/register" },
-  ];
+  const handleUnreadCountChange = (count) => {
+    setChatUnreadCount(count);
+  };
 
   return (
-    <BrowserRouter>
-      <AppBar position="fixed">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>Task Portal</Typography>
-          {navItems.map((item) => (
-            <Button
-              key={item.path}
-              color="inherit"
-              component={Link}
-              to={item.path}
-              sx={{ ml: 1 }}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </Toolbar>
-      </AppBar>
-      <Box sx={{ minHeight: "64px" }} /> {/* Spacer for fixed navbar */}
-      <Box>
-        <Routes>
-          <Route path="/" element={<Dashboard user={user} setUser={setUser} />} />
-          <Route path="/dashboard" element={<Dashboard user={user} setUser={setUser} />} />
-          <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="/register" element={<Register setUser={setUser} />} />
-          <Route path="/newtask" element={<Newtask user={user} />} />
-          <Route path="/chat" element={<Chat user={user} />} />
-        </Routes>
-      </Box>
-    </BrowserRouter>
+    <UserProvider>
+      <ThemeModeProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Welcome />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/*"
+              element={
+                <>
+                  <NavBar chatUnreadCount={chatUnreadCount} />
+                  <Routes>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/newtask" element={<NewTask />} />
+                    <Route 
+                      path="/chat" 
+                      element={<Chat onUnreadCountChange={handleUnreadCountChange} />} 
+                    />
+                    <Route path="/logout" element={<Logout/>}/>
+                  </Routes>
+                </>
+              }
+            />
+          </Routes>
+        </Router>
+      </ThemeModeProvider>
+    </UserProvider>
   );
-};
+}
 
 export default App;

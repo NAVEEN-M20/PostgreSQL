@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
-import Welcome from "./components/Welcome"
+import Welcome from "./components/Welcome";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
@@ -8,10 +8,12 @@ import NewTask from "./components/NewTask.jsx";
 import Chat from "./components/Chat";
 import Logout from "./components/Logout";
 import { UserProvider } from "./components/UserProvider";
-import NavBar from "./components/NavBar"
+import Navbar from "./components/Navbar";
 import ThemeModeProvider from "./components/ThemeContext.jsx";
 
 function App() {
+  const [unreadCounts, setUnreadCounts] = useState({});
+
   useEffect(() => {
     const setVh = () => {
       document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
@@ -29,36 +31,26 @@ function App() {
     <UserProvider>
       <ThemeModeProvider>
         <Router>
-          {/* Navbar visible on all pages except Welcome/Login/Register */}
           <Routes>
-          <Route
-            path="/"
-            element={<Welcome />}
-          />
-          <Route
-            path="/login"
-            element={<Login />}
-          />
-          <Route
-            path="/register"
-            element={<Register />}
-          />
-          <Route
-            path="/*"
-            element={
-              <>
-                <NavBar />
-                <Routes>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/newtask" element={<NewTask />} />
-                  <Route path="/chat" element={<Chat />} />
-                  <Route path="/logout" element={<Logout/>}/>
-                </Routes>
-              </>
-            }
-          />
-        </Routes>
-      </Router>
+            <Route path="/" element={<Welcome />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/*"
+              element={
+                <>
+                  <Navbar unreadCounts={unreadCounts} />
+                  <Routes>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/newtask" element={<NewTask />} />
+                    <Route path="/chat" element={<Chat setUnreadCounts={setUnreadCounts} />} />
+                    <Route path="/logout" element={<Logout />} />
+                  </Routes>
+                </>
+              }
+            />
+          </Routes>
+        </Router>
       </ThemeModeProvider>
     </UserProvider>
   );

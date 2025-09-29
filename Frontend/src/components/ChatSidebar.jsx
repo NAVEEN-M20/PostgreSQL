@@ -11,21 +11,26 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import NotificationBubble from "./NotificationBubble";
 
-const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) => {
+const ChatSidebar = ({
+  users,
+  onSelect,
+  selectedUser,
+  isMobile,
+  unreadCounts,
+}) => {
   const theme = useTheme();
-  const handleSelect = useCallback(
-    (user) => onSelect(user),
-    [onSelect]
-  );
+  const handleSelect = useCallback((user) => onSelect(user), [onSelect]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
   // Filter users by search
-  const filteredUsers = users.filter((user) =>
-    (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Cancel search
@@ -79,16 +84,17 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                 <IconButton
                   size="small"
                   onClick={searchFocused ? handleCancelSearch : undefined}
-                  sx={{ color: "grey"}}
+                  sx={{ color: "grey" }}
                 >
                   {searchFocused ? <ArrowBackIcon /> : <SearchIcon />}
                 </IconButton>
               </InputAdornment>
             ),
             sx: {
-              py: 1.2, 
-              borderRadius: "24px", 
-              backgroundColor: theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
+              py: 1.2,
+              borderRadius: "24px",
+              backgroundColor:
+                theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
               "& .MuiInputBase-input": {
                 color: theme.palette.mode === "dark" ? "#fff" : "#000",
               },
@@ -110,7 +116,9 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
       >
         <List sx={{ p: 0 }}>
           {filteredUsers.length === 0 ? (
-            <Typography sx={{ p: 2, color: "text.secondary", textAlign: "center" }}>
+            <Typography
+              sx={{ p: 2, color: "text.secondary", textAlign: "center" }}
+            >
               No user found
             </Typography>
           ) : (
@@ -142,7 +150,8 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                         width: 48,
                         height: 48,
                         borderRadius: "50%",
-                        background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                        background:
+                          "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -154,14 +163,14 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                     >
                       {user.name ? user.name.charAt(0).toUpperCase() : "?"}
                     </Box>
-
                     {/* User Info */}
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography
                         className="gradient-text"
                         sx={{
                           fontWeight: "bold",
-                          background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                          background:
+                            "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
                           WebkitBackgroundClip: "text",
                           WebkitTextFillColor: "transparent",
                           display: "inline-block",
@@ -169,30 +178,17 @@ const ChatSidebar = ({ users, onSelect, selectedUser, isMobile, unreadCounts }) 
                       >
                         {user.name || user.email}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
                         {user.email}
                       </Typography>
                     </Box>
-
                     {/* Unread Bubble */}
                     {unreadCount > 0 && (
-                      <Box
-                        sx={{
-                          minWidth: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          background: "#1d4ed8",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontSize: "0.75rem",
-                          fontWeight: "bold",
-                          marginLeft: "auto",
-                        }}
-                      >
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </Box>
+                      <NotificationBubble count={unreadCount} size={20} />
                     )}
                   </Box>
                 </ListItemButton>

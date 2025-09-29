@@ -8,23 +8,26 @@ import { io } from "socket.io-client";
 import { useSearchParams } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const NAVBAR_HEIGHT = 64; 
+const NAVBAR_HEIGHT = 64;
 
-// Global socket instance to maintain single connection
 let globalSocket = null;
 
-const Chat = () => {
+const Chat = ({ setUnreadCounts }) => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [view, setView] = useState("sidebar");
-  const [unreadCounts, setUnreadCounts] = useState({});
+  const [unreadCountsLocal, setUnreadCountsLocal] = useState({});
   const { user } = useContext(UserContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [socket, setSocket] = useState(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [setSearchParams] = useSearchParams();
 
-  // Initialize socket connection once
+  // Sync local unread counts to Navbar
+  useEffect(() => {
+    if (setUnreadCounts) setUnreadCounts(unreadCountsLocal);
+  }, [unreadCountsLocal, setUnreadCounts]);
+
   useEffect(() => {
     if (!globalSocket) {
       globalSocket = io(API_URL, {
@@ -34,49 +37,20 @@ const Chat = () => {
       });
 
       globalSocket.on("connect", () => {
-        console.log("✅ Socket connected");
-        if (user?.id) {
-          globalSocket.emit("register", user.id);
-        }
-      });
-
-      globalSocket.on("disconnect", () => {
-        console.log("❌ Socket disconnected");
-      });
-
-      globalSocket.on("connect_error", (error) => {
-        console.error("Socket connection error:", error);
+        if (user?.id) globalSocket.emit("register", user.id);
       });
     }
-
     setSocket(globalSocket);
+  }, [user]);
 
-    return () => {
-      // Don't disconnect - keep socket alive for app lifetime
-    };
-  }, []);
-
-  // Register user with socket when user changes
-  useEffect(() => {
-    if (socket && user?.id) {
-      socket.emit("register", user.id);
-    }
-  }, [socket, user]);
-
-  // Socket event listeners for unread counts
   useEffect(() => {
     if (!socket) return;
 
-    const handleUnreadCounts = (counts) => {
-      console.log("📨 Received unread counts:", counts);
-      setUnreadCounts(counts);
-    };
+    const handleUnreadCounts = (counts) => setUnreadCountsLocal(counts);
 
     const handleReceiveMessage = (message) => {
-      console.log("📩 New message received:", message);
-      // Increment unread only if the conversation is not currently open
       if (message.sender_id && message.sender_id !== user?.id && message.sender_id !== selectedUser?.id) {
-        setUnreadCounts(prev => ({
+        setUnreadCountsLocal(prev => ({
           ...prev,
           [message.sender_id]: (prev[message.sender_id] || 0) + 1
         }));
@@ -92,16 +66,11 @@ const Chat = () => {
     };
   }, [socket, user, selectedUser]);
 
-  // Viewport height handled globally in App.jsx
-
-  // Fetch users and unread counts once user is known (from UserProvider)
+  // Fetch users & unread counts
   useEffect(() => {
     let mounted = true;
     const run = async () => {
-      if (!user) {
-        // wait until user is available
-        return;
-      }
+      if (!user) return;
       try {
         const [usersRes, unreadRes] = await Promise.all([
           axios.get(`${API_URL}/api/users`, { withCredentials: true }),
@@ -109,12 +78,12 @@ const Chat = () => {
         ]);
         if (mounted) {
           setUsers(usersRes.data || []);
-          setUnreadCounts(unreadRes.data || {});
+          setUnreadCountsLocal(unreadRes.data || {});
         }
       } catch {
         if (mounted) {
           setUsers([]);
-          setUnreadCounts({});
+          setUnreadCountsLocal({});
         }
       }
     };
@@ -123,58 +92,21 @@ const Chat = () => {
   }, [user]);
 
   const handleSelectUser = (selectedUser) => {
-    console.log("👤 User selected:", selectedUser.name);
     setSelectedUser(selectedUser);
-    
-    // reflect in URL so back swipe stays within /chat
     setSearchParams({ uid: String(selectedUser.id) }, { replace: false });
-    
-    if (isMobile) {
-      setView("chat");
-    }
-    
-    // Mark messages as read when user is selected
+    if (isMobile) setView("chat");
+
     if (socket && user?.id && selectedUser?.id) {
-      console.log("📖 Marking messages as read from:", selectedUser.name);
-      socket.emit("markAsRead", {
-        senderId: selectedUser.id,
-        receiverId: user.id
-      });
-      
-      // Update local state immediately for better UX
-      setUnreadCounts(prev => ({
-        ...prev,
-        [selectedUser.id]: 0
-      }));
+      socket.emit("markAsRead", { senderId: selectedUser.id, receiverId: user.id });
+      setUnreadCountsLocal(prev => ({ ...prev, [selectedUser.id]: 0 }));
     }
   };
 
   const handleBack = () => {
     setView("sidebar");
     setSelectedUser(null);
-    // clear query param to support back within /chat
     setSearchParams({}, { replace: false });
   };
-
-  // Debug: Log unread counts changes
-  useEffect(() => {
-    console.log("🔔 Unread counts updated:", unreadCounts);
-  }, [unreadCounts]);
-
-  // Sync selected user with URL (uid) so back swipe stays within /chat
-  useEffect(() => {
-    const uid = searchParams.get("uid");
-    if (uid && users.length > 0) {
-      const u = users.find(x => String(x.id) === String(uid));
-      if (u) {
-        setSelectedUser(u);
-        if (isMobile) setView("chat");
-      }
-    } else {
-      // No uid => show sidebar on mobile
-      if (isMobile) setView("sidebar");
-    }
-  }, [searchParams, users, isMobile]);
 
   return (
     <Box
@@ -189,18 +121,15 @@ const Chat = () => {
         background: "transparent",
       }}
     >
-      {/* Always show sidebar on desktop, conditionally on mobile */}
       {(view === "sidebar" || !isMobile) && (
         <ChatSidebar
           users={users}
           onSelect={handleSelectUser}
           selectedUser={selectedUser}
           isMobile={isMobile}
-          unreadCounts={unreadCounts}
+          unreadCounts={unreadCountsLocal}
         />
       )}
-      
-      {/* Show chat window when user is selected (always on desktop if user selected) */}
       {(view === "chat" || (!isMobile && selectedUser)) && (
         <ChatWindow
           currentUser={user}
@@ -210,18 +139,10 @@ const Chat = () => {
           socket={socket}
         />
       )}
-      
-      {/* Show placeholder when no user selected on desktop */}
       {!isMobile && !selectedUser && (
-        <Box 
+        <Box
           className="chat-window-bg"
-          sx={{ 
-            flex: 1, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            background: 'transparent'
-          }}
+          sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent" }}
         >
           <Typography variant="h6" color="text.secondary">
             Select a user to start chatting
