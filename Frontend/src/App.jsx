@@ -8,7 +8,7 @@ import NewTask from "./components/NewTask.jsx";
 import Chat from "./components/Chat";
 import Logout from "./components/Logout";
 import { UserProvider } from "./components/UserProvider";
-import Navbar from "./components/Navbar";
+import NavBar from "./components/NavBar";
 import ThemeModeProvider from "./components/ThemeContext.jsx";
 
 function App() {
@@ -39,7 +39,7 @@ function App() {
               path="/*"
               element={
                 <>
-                  <Navbar unreadCounts={unreadCounts} />
+                  <NavBar unreadCounts={unreadCounts} />
                   <Routes>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/newtask" element={<NewTask />} />
