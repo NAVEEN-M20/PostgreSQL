@@ -67,7 +67,7 @@ const ChatSidebar = ({
       </Typography>
 
       {/* Search Bar */}
-      <Box sx={{ px: 2, py: 1, borderBottom: "1px solid #eee" }}>
+      <Box sx={{ px: 2, py: 1, borderBottom: theme.palette.mode === "dark" ? "#333" : "#f5f5f5", }}>
         <TextField
           fullWidth
           placeholder="Select users..."
@@ -132,7 +132,7 @@ const ChatSidebar = ({
                   onClick={() => handleSelect(user)}
                   sx={{
                     borderRadius: 0,
-                    borderBottom: "1px solid #f0f0f0",
+                    borderBottom: theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
                     position: "relative",
                   }}
                 >
