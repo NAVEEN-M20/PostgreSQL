@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -11,7 +11,8 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
-import { UserContext } from "./UserContext";
+import { useNavigate } from "react-router-dom";
+import { UserContext } from "./UserContext"
 import { io } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -20,57 +21,163 @@ let socket;
 function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const { user, setUser } = useContext(UserContext);
+  const navigate = useNavigate();
 
+  // Memoized navigation function to prevent unnecessary re-renders
+  const redirectToLogin = useCallback(() => {
+    navigate("/login");
+  }, [navigate]);
+
+  // Redirect when user becomes falsy
   useEffect(() => {
-    // Initialize socket connection
-    if (!socket) {
-      socket = io(API_URL, { 
-        withCredentials: true,
-        path: "/socket.io/",
-      });
+    if (!user) {
+      redirectToLogin();
     }
+  }, [user, redirectToLogin]);
 
-    const fetchDashboard = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/api/dashboard`, {
+  // Memoized fetch function to prevent recreation on every render
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/dashboard`, {
+        withCredentials: true,
+        headers: { 
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        },
+      });
+      const {user,tasks = []} = res.data;
+
+      if (user?.id && user?.name) {
+        setUser(user);
+        setTasks(Array.isArray(tasks)? tasks : []);
+      } else {
+        setUser(null);
+        redirectToLogin();
+      }
+    } catch (err) {
+      console.error("Error loading dashboard:", err);
+      setUser(null);
+      redirectToLogin();
+    }
+  }, [setUser, redirectToLogin]);
+
+  // Initialize socket and fetch data only once
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeDashboard = async () => {
+      // Initialize socket only once
+      if (!socket) {
+        socket = io(API_URL, {
           withCredentials: true,
-          headers: { "Cache-Control": "no-cache" },
+          path: "/socket.io/",
         });
-        setUser(res.data.user);
-        setTasks(res.data.tasks);
-      } catch (err) {
-        console.error("Error loading dashboard:", err);
+      }
+
+      if (isMounted) {
+        await fetchDashboard();
       }
     };
-    fetchDashboard();
+
+    initializeDashboard();
 
     return () => {
-      if (socket) {
-        socket.disconnect();
-      }
+      isMounted = false;
     };
-  }, [setUser]);
+  }, [fetchDashboard]); // Only depends on memoized fetchDashboard
 
-  const handleDelete = async (taskId, taskTitle, assignedById) => {
+  // Memoized delete handler to prevent recreation on every render
+  const handleDelete = useCallback(async (taskId, taskTitle, assignedById) => {
     try {
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      
       await axios.delete(`${API_URL}/api/task/${taskId}`, {
         withCredentials: true,
       });
-      setTasks((prev) => prev.filter((task) => task.id !== taskId));
-      
+
       // Send completion message to the assigner
       if (socket && assignedById && user) {
         socket.emit("sendMessage", {
           senderId: user.id,
           receiverId: assignedById,
           message: `${taskTitle} completed!!`,
-          type: "task_completed"
+          type: "task_completed",
         });
       }
     } catch (err) {
       console.error("Error deleting task:", err);
+      // Revert optimistic update on error by refetching
+      fetchDashboard();
     }
-  };
+  }, [user, fetchDashboard]);
+
+  // Memoized task list item to prevent unnecessary re-renders
+  const TaskListItem = useCallback(({ task, index }) => (
+    <React.Fragment key={task.id}>
+      <ListItem
+        secondaryAction={
+          <IconButton
+            edge="end"
+            onClick={() => handleDelete(task.id, task.title, task.assigned_by)}
+            sx={{ ml: 3 }}
+          >
+            <DeleteIcon sx={{ color: "#ef4444" }} />
+          </IconButton>
+        }
+        sx={{
+          mb: 2,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          boxShadow: "none",
+          backgroundColor: "transparent",
+          "&:hover": {
+            backgroundColor: "transparent",
+            boxShadow: "none",
+          },
+        }}
+      >
+        <ListItemText
+          primary={task.title}
+          secondary={task.description}
+          primaryTypographyProps={{
+            fontWeight: "bold",
+            fontSize: "20px",
+            margin: "10px 0",
+          }}
+          secondaryTypographyProps={{
+            margin: "10px 0",
+            color: "text.secondary",
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            marginLeft: 2,
+            color: "text.secondary",
+            fontStyle: "italic",
+            minWidth: "120px",
+            textAlign: "right",
+          }}
+        >
+          Assigned by:{" "}
+          <span
+            style={{
+              fontWeight: "bold",
+              background:
+                "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              display: "inline-block",
+            }}
+          >
+            {task.assigned_by_name}
+          </span>
+        </Typography>
+      </ListItem>
+      {index < tasks.length - 1 && <Divider />}
+    </React.Fragment>
+  ), [handleDelete, tasks.length]);
 
   return (
     <Box
@@ -85,13 +192,8 @@ function Dashboard() {
         minHeight: 0,
       }}
     >
-    
       <Box sx={{ mb: 3, textAlign: "center" }}>
-        <Typography
-          variant="h5"
-          gutterBottom
-          sx={{ fontWeight: 500 }}
-        >
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 500 }}>
           Welcome,{" "}
           <Box
             component="span"
@@ -111,7 +213,7 @@ function Dashboard() {
         <Typography
           variant="h4"
           gutterBottom
-          sx={{ 
+          sx={{
             fontWeight: 600,
             background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
             WebkitBackgroundClip: "text",
@@ -137,16 +239,16 @@ function Dashboard() {
         }}
       >
         {/* Tasks Header with gradient and margin bottom */}
-        <Box 
-          sx={{ 
-            p: 2, 
+        <Box
+          sx={{
+            p: 2,
             background: "transparent",
             color: "inherit",
             borderTopLeftRadius: 3,
             borderTopRightRadius: 3,
             mb: 2,
-            borderBottom: '1px solid',
-            borderColor: 'divider'
+            borderBottom: "1px solid",
+            borderColor: "divider",
           }}
         >
           <Typography variant="h6" align="center">
@@ -155,9 +257,9 @@ function Dashboard() {
         </Box>
 
         {/* Scrollable Tasks List with hidden scrollbar */}
-        <Box 
-          sx={{ 
-            flexGrow: 1, 
+        <Box
+          sx={{
+            flexGrow: 1,
             overflow: "auto",
             minHeight: 0,
             pb: 3,
@@ -169,80 +271,13 @@ function Dashboard() {
           }}
         >
           {tasks.length === 0 ? (
-            <Typography 
-              align="center" 
-              color="text.secondary" 
-              sx={{ py: 8 }}
-            >
+            <Typography align="center" color="text.secondary" sx={{ py: 8 }}>
               No tasks assigned yet.
             </Typography>
           ) : (
             <List sx={{ p: 2, pt: 0 }}>
-              {tasks.map((task, idx) => (
-                <React.Fragment key={task.id}>
-                  <ListItem
-                    secondaryAction={
-                      <IconButton
-                        edge="end"
-                        onClick={() => handleDelete(task.id, task.title, task.assigned_by)}
-                        sx={{ ml: 3 }}
-                      >
-                        <DeleteIcon sx={{ color: "#ef4444" }} />
-                      </IconButton>
-                    }
-                    sx={{
-                      mb: 2,
-                      border: "1px solid",
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      boxShadow: "none",
-                      backgroundColor: "transparent",
-                      "&:hover": {
-                        backgroundColor: "transparent",
-                        boxShadow: "none",
-                      },
-                    }}
-                  >
-                    <ListItemText
-                      primary={task.title}
-                      secondary={task.description}
-                      primaryTypographyProps={{
-                        fontWeight: "bold",
-                        fontSize: "20px",
-                        margin: "10px 0",
-                      }}
-                      secondaryTypographyProps={{ 
-                        margin: "10px 0",
-                        color: "text.secondary"
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        marginLeft: 2,
-                        color: "text.secondary",
-                        fontStyle: "italic",
-                        minWidth: "120px",
-                        textAlign: "right"
-                      }}
-                    >
-                      Assigned by:{" "}
-                      <span
-                        style={{
-                          fontWeight: "bold",
-                          background:
-                            "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                          display: "inline-block",
-                        }}
-                      >
-                        {task.assigned_by_name}
-                      </span>
-                    </Typography>
-                  </ListItem>
-                  {idx < tasks.length - 1 && <Divider />}
-                </React.Fragment>
+              {tasks.map((task, index) => (
+                <TaskListItem key={task.id} task={task} index={index} />
               ))}
             </List>
           )}
@@ -252,4 +287,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard;
+export default React.memo(Dashboard);
