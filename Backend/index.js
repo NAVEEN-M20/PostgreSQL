@@ -394,10 +394,10 @@ app.get(
 
 app.get(
   "/api/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: FRONTEND + "/login" }),
+  passport.authenticate("google", { failureRedirect: FRONTEND + "/#/login" }),
   (req, res) => {
     // ✅ Redirect to frontend dashboard after successful login
-    res.redirect( FRONTEND + "/dashboard");
+    res.redirect( FRONTEND + "/#/dashboard");
   }
 );
 
