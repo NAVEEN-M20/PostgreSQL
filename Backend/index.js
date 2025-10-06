@@ -21,7 +21,7 @@ const saltRounds = 10;
 env.config();
 
 // ----------------- CORS -----------------
-const FRONTEND = process.env.FRONTEND_URL || "http://localhost:5173";
+const FRONTEND = process.env.FRONTEND_URL || "https://taskportalx.netlify.app";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
 
 const allowedOrigins = [
