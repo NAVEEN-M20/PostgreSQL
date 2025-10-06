@@ -398,11 +398,7 @@ app.get(
   "/api/auth/google/callback",
   passport.authenticate("google", { failureRedirect: FRONTEND + "/#/login" }),
   (req, res) => {
-    req.login(req.user, (err) => {
-      if (err) {
-        console.error("Google OAuth session save error:", err);
-        return res.redirect(FRONTEND + "/#/login");
-      }
+    req.login(req.user, () => {
       res.redirect(FRONTEND + "/#/dashboard");
     });
   }

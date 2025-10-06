@@ -22,58 +22,76 @@ function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const { user, setUser } = useContext(UserContext);
   const navigate = useNavigate();
+  const [socketConnected, setSocketConnected] = useState(false);
 
-  // Memoized navigation function to prevent unnecessary re-renders
+  // Improved redirect logic
   const redirectToLogin = useCallback(() => {
-    navigate("/login");
+    if (window.location.pathname !== '/login') {
+      navigate("/login");
+    }
   }, [navigate]);
 
-  // Redirect when user becomes falsy
   useEffect(() => {
-    if (!user) {
+    if (user === null) {
       redirectToLogin();
     }
   }, [user, redirectToLogin]);
 
-  // Memoized fetch function to prevent recreation on every render
-  const fetchDashboard = useCallback(async () => {
+  // Modified fetchDashboard
+  const fetchDashboard = useCallback(async (retryCount = 0) => {
     try {
       const res = await axios.get(`${API_URL}/api/dashboard`, {
         withCredentials: true,
         headers: {
           "Cache-Control": "no-cache",
-          Pragma: "no-cache",
         },
       });
-      const { user, tasks = [] } = res.data;
-
-      if (user?.id && user?.name) {
-        setUser(user);
-        setTasks(Array.isArray(tasks) ? tasks : []);
-      } else {
-        setUser(null);
-        redirectToLogin();
+      
+      if (res.data?.user) {
+        setUser(res.data.user);
+        setTasks(res.data.tasks || []);
       }
     } catch (err) {
-      console.error("Error loading dashboard:", err);
-      setUser(null);
-      redirectToLogin();
+      console.error("Dashboard fetch error:", err);
+      if (retryCount < 2) {
+        setTimeout(() => fetchDashboard(retryCount + 1), 1000 * Math.pow(2, retryCount));
+      } else {
+        setUser(null);
+      }
     }
-  }, [setUser, redirectToLogin]);
+  }, [setUser]);
 
-  // Initialize socket and fetch data only once
+  // Improved socket initialization
   useEffect(() => {
     let isMounted = true;
 
-    const initializeDashboard = async () => {
-      // Initialize socket only once
+    const initializeSocket = () => {
       if (!socket) {
         socket = io(API_URL, {
           withCredentials: true,
           path: "/socket.io/",
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+        });
+
+        socket.on('connect', () => {
+          if (isMounted) setSocketConnected(true);
+        });
+
+        socket.on('disconnect', () => {
+          if (isMounted) setSocketConnected(false);
+        });
+
+        socket.on('connect_error', (error) => {
+          console.error('Socket connection error:', error);
+          if (isMounted) setSocketConnected(false);
         });
       }
+    };
 
+    const initializeDashboard = async () => {
+      initializeSocket();
       if (isMounted) {
         await fetchDashboard();
       }
@@ -83,12 +101,18 @@ function Dashboard() {
 
     return () => {
       isMounted = false;
+      if (socket) {
+        socket.off('connect');
+        socket.off('disconnect');
+        socket.off('connect_error');
+      }
     };
-  }, [fetchDashboard]); // Only depends on memoized fetchDashboard
+  }, [fetchDashboard]);
 
-  // Memoized delete handler to prevent recreation on every render
+  // Improved delete handler with optimistic updates and error handling
   const handleDelete = useCallback(
     async (taskId, taskTitle, assignedById) => {
+      const originalTasks = [...tasks];
       try {
         setTasks((prev) => prev.filter((task) => task.id !== taskId));
 
@@ -96,8 +120,7 @@ function Dashboard() {
           withCredentials: true,
         });
 
-        // Send completion message to the assigner
-        if (socket && assignedById && user) {
+        if (socketConnected && assignedById && user) {
           socket.emit("sendMessage", {
             senderId: user.id,
             receiverId: assignedById,
@@ -107,11 +130,10 @@ function Dashboard() {
         }
       } catch (err) {
         console.error("Error deleting task:", err);
-        // Revert optimistic update on error by refetching
-        fetchDashboard();
+        setTasks(originalTasks);
       }
     },
-    [user, fetchDashboard]
+    [user, tasks, socketConnected]
   );
 
   // Memoized task list item to prevent unnecessary re-renders
