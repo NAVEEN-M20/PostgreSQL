@@ -29,15 +29,23 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1) {
+
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || "http://localhost:5173",
+        "https://accounts.google.com", 
+      ];
+
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.error("❌ Blocked by CORS:", origin);
         callback(new Error("CORS policy: origin not allowed"));
       }
     },
     credentials: true,
   })
 );
+
 
 // ----------------- MIDDLEWARE -----------------
 app.use(bodyParser.urlencoded({ extended: true }));
