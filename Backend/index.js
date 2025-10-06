@@ -28,8 +28,12 @@ const allowedOrigins = [FRONTEND].filter(Boolean);
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow non-browser requests (like curl, Postman)
       if (!origin) return callback(null, true);
+
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || "http://localhost:5173",
+        "https://accounts.google.com",
+      ];
 
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -41,7 +45,6 @@ app.use(
     credentials: true,
   })
 );
-
 // ----------------- MIDDLEWARE -----------------
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
