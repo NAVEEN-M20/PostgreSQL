@@ -32,7 +32,7 @@ app.use(
 
       const allowedOrigins = [
         process.env.FRONTEND_URL || "http://localhost:5173",
-        "https://accounts.google.com", 
+        "https://accounts.google.com",
       ];
 
       if (allowedOrigins.includes(origin)) {
@@ -45,7 +45,6 @@ app.use(
     credentials: true,
   })
 );
-
 
 // ----------------- MIDDLEWARE -----------------
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -279,26 +278,27 @@ app.delete("/api/task/:id", async (req, res) => {
 
 // ----------------- AUTH -----------------
 passport.use(
-  new Strategy(
-    { usernameField: "email" },
-    async function verify(email, password, cb) {
-      try {
-        const result = await db.query("SELECT * FROM users WHERE email = $1", [
-          email,
-        ]);
-        if (result.rows.length === 0) return cb(null, false);
+  new Strategy({ usernameField: "email" }, async function verify(
+    email,
+    password,
+    cb
+  ) {
+    try {
+      const result = await db.query("SELECT * FROM users WHERE email = $1", [
+        email,
+      ]);
+      if (result.rows.length === 0) return cb(null, false);
 
-        const user = result.rows[0];
-        bcrypt.compare(password, user.password, (err, valid) => {
-          if (err) return cb(err);
-          return valid ? cb(null, user) : cb(null, false);
-        });
-      } catch (err) {
-        console.error(err);
-        return cb(err);
-      }
+      const user = result.rows[0];
+      bcrypt.compare(password, user.password, (err, valid) => {
+        if (err) return cb(err);
+        return valid ? cb(null, user) : cb(null, false);
+      });
+    } catch (err) {
+      console.error(err);
+      return cb(err);
     }
-  )
+  })
 );
 
 passport.serializeUser((user, cb) => cb(null, user.id));
@@ -328,7 +328,10 @@ app.post("/api/login", (req, res, next) => {
   if (validation) {
     return res
       .status(400)
-      .json({ success: false, error: validation.email?.[0] || "Invalid input" });
+      .json({
+        success: false,
+        error: validation.email?.[0] || "Invalid input",
+      });
   }
 
   passport.authenticate("local", (err, user, info) => {
@@ -352,8 +355,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL:
-        process.env.BACKEND_URL + "/api/auth/google/callback", 
+      callbackURL: process.env.BACKEND_URL + "/api/auth/google/callback",
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -396,8 +398,13 @@ app.get(
   "/api/auth/google/callback",
   passport.authenticate("google", { failureRedirect: FRONTEND + "/#/login" }),
   (req, res) => {
-    // ✅ Redirect to frontend dashboard after successful login
-    res.redirect( FRONTEND + "/#/dashboard");
+    req.login(req.user, (err) => {
+      if (err) {
+        console.error("Google OAuth session save error:", err);
+        return res.redirect(FRONTEND + "/#/login");
+      }
+      res.redirect(FRONTEND + "/#/dashboard");
+    });
   }
 );
 
