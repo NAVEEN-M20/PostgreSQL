@@ -5,6 +5,7 @@ import pg from "pg";
 import bcrypt from "bcrypt";
 import passport from "passport";
 import { Strategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import env from "dotenv";
 import cors from "cors";
@@ -20,9 +21,9 @@ const saltRounds = 10;
 env.config();
 
 // ----------------- CORS -----------------
-const FRONTEND = process.env.FRONTEND_URL || "https://taskportalx.netlify.app";
-const LOCAL_DEV = "http://localhost:5173";
-const allowedOrigins = [FRONTEND, LOCAL_DEV].filter(Boolean);
+const FRONTEND = process.env.FRONTEND_URL || "http://localhost:5173";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+const allowedOrigins = [FRONTEND].filter(Boolean);
 
 app.use(
   cors({
@@ -336,6 +337,61 @@ app.post("/api/login", (req, res, next) => {
     });
   })(req, res, next);
 });
+
+// ----------------- GOOGLE OAUTH STRATEGY -----------------
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL:
+        process.env.BACKEND_URL + "/api/auth/google/callback", 
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        // Check if user already exists in DB
+        const result = await db.query("SELECT * FROM users WHERE email = $1", [
+          profile.emails[0].value,
+        ]);
+
+        let user;
+        if (result.rows.length === 0) {
+          const insert = await db.query(
+            "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email",
+            [
+              profile.displayName,
+              profile.emails[0].value,
+              "GoogleOAuthUser", // Placeholder password
+            ]
+          );
+          user = insert.rows[0];
+        } else {
+          user = result.rows[0];
+        }
+
+        return done(null, user);
+      } catch (err) {
+        console.error("Google OAuth error:", err);
+        return done(err, null);
+      }
+    }
+  )
+);
+
+// ----------------- GOOGLE OAUTH ROUTES -----------------
+app.get(
+  "/api/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+app.get(
+  "/api/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: FRONTEND + "/login" }),
+  (req, res) => {
+    // ✅ Redirect to frontend dashboard after successful login
+    res.redirect( FRONTEND + "/dashboard");
+  }
+);
 
 // ---- Register ----
 app.post("/api/register", async (req, res) => {

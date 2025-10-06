@@ -12,7 +12,7 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { UserContext } from "./UserContext"
+import { UserContext } from "./UserContext";
 import { io } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -40,16 +40,16 @@ function Dashboard() {
     try {
       const res = await axios.get(`${API_URL}/api/dashboard`, {
         withCredentials: true,
-        headers: { 
+        headers: {
           "Cache-Control": "no-cache",
-          "Pragma": "no-cache"
+          Pragma: "no-cache",
         },
       });
-      const {user,tasks = []} = res.data;
+      const { user, tasks = [] } = res.data;
 
       if (user?.id && user?.name) {
         setUser(user);
-        setTasks(Array.isArray(tasks)? tasks : []);
+        setTasks(Array.isArray(tasks) ? tasks : []);
       } else {
         setUser(null);
         redirectToLogin();
@@ -87,97 +87,104 @@ function Dashboard() {
   }, [fetchDashboard]); // Only depends on memoized fetchDashboard
 
   // Memoized delete handler to prevent recreation on every render
-  const handleDelete = useCallback(async (taskId, taskTitle, assignedById) => {
-    try {
-      setTasks(prev => prev.filter(task => task.id !== taskId));
-      
-      await axios.delete(`${API_URL}/api/task/${taskId}`, {
-        withCredentials: true,
-      });
+  const handleDelete = useCallback(
+    async (taskId, taskTitle, assignedById) => {
+      try {
+        setTasks((prev) => prev.filter((task) => task.id !== taskId));
 
-      // Send completion message to the assigner
-      if (socket && assignedById && user) {
-        socket.emit("sendMessage", {
-          senderId: user.id,
-          receiverId: assignedById,
-          message: `${taskTitle} completed!!`,
-          type: "task_completed",
+        await axios.delete(`${API_URL}/api/task/${taskId}`, {
+          withCredentials: true,
         });
+
+        // Send completion message to the assigner
+        if (socket && assignedById && user) {
+          socket.emit("sendMessage", {
+            senderId: user.id,
+            receiverId: assignedById,
+            message: `${taskTitle} completed!!`,
+            type: "task_completed",
+          });
+        }
+      } catch (err) {
+        console.error("Error deleting task:", err);
+        // Revert optimistic update on error by refetching
+        fetchDashboard();
       }
-    } catch (err) {
-      console.error("Error deleting task:", err);
-      // Revert optimistic update on error by refetching
-      fetchDashboard();
-    }
-  }, [user, fetchDashboard]);
+    },
+    [user, fetchDashboard]
+  );
 
   // Memoized task list item to prevent unnecessary re-renders
-  const TaskListItem = useCallback(({ task, index }) => (
-    <React.Fragment key={task.id}>
-      <ListItem
-        secondaryAction={
-          <IconButton
-            edge="end"
-            onClick={() => handleDelete(task.id, task.title, task.assigned_by)}
-            sx={{ ml: 3 }}
-          >
-            <DeleteIcon sx={{ color: "#ef4444" }} />
-          </IconButton>
-        }
-        sx={{
-          mb: 2,
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 2,
-          boxShadow: "none",
-          backgroundColor: "transparent",
-          "&:hover": {
-            backgroundColor: "transparent",
-            boxShadow: "none",
-          },
-        }}
-      >
-        <ListItemText
-          primary={task.title}
-          secondary={task.description}
-          primaryTypographyProps={{
-            fontWeight: "bold",
-            fontSize: "20px",
-            margin: "10px 0",
-          }}
-          secondaryTypographyProps={{
-            margin: "10px 0",
-            color: "text.secondary",
-          }}
-        />
-        <Typography
-          variant="caption"
+  const TaskListItem = useCallback(
+    ({ task, index }) => (
+      <React.Fragment key={task.id}>
+        <ListItem
+          secondaryAction={
+            <IconButton
+              edge="end"
+              onClick={() =>
+                handleDelete(task.id, task.title, task.assigned_by)
+              }
+              sx={{ ml: 3 }}
+            >
+              <DeleteIcon sx={{ color: "#ef4444" }} />
+            </IconButton>
+          }
           sx={{
-            marginLeft: 2,
-            color: "text.secondary",
-            fontStyle: "italic",
-            minWidth: "120px",
-            textAlign: "right",
+            mb: 2,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 2,
+            boxShadow: "none",
+            backgroundColor: "transparent",
+            "&:hover": {
+              backgroundColor: "transparent",
+              boxShadow: "none",
+            },
           }}
         >
-          Assigned by:{" "}
-          <span
-            style={{
+          <ListItemText
+            primary={task.title}
+            secondary={task.description}
+            primaryTypographyProps={{
               fontWeight: "bold",
-              background:
-                "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              display: "inline-block",
+              fontSize: "20px",
+              margin: "10px 0",
+            }}
+            secondaryTypographyProps={{
+              margin: "10px 0",
+              color: "text.secondary",
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              marginLeft: 2,
+              color: "text.secondary",
+              fontStyle: "italic",
+              minWidth: "120px",
+              textAlign: "right",
             }}
           >
-            {task.assigned_by_name}
-          </span>
-        </Typography>
-      </ListItem>
-      {index < tasks.length - 1 && <Divider />}
-    </React.Fragment>
-  ), [handleDelete, tasks.length]);
+            Assigned by:{" "}
+            <span
+              style={{
+                fontWeight: "bold",
+                background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                display: "inline-block",
+              }}
+            >
+              {task.assigned_by_name}
+            </span>
+          </Typography>
+        </ListItem>
+        {index < tasks.length - 1 && <Divider />}
+      </React.Fragment>
+    ),
+    [handleDelete, tasks.length]
+  );
 
   return (
     <Box
