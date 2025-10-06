@@ -314,9 +314,29 @@ passport.deserializeUser(async (id, cb) => {
 
 // ---- Login ----
 app.post("/api/login", async (req, res, next) => {
+  const { email, password } = req.body;
+
+  // Validate email + password
+  const constraints = {
+    email: { presence: true, email: true },
+    password: { presence: true },
+  };
+  const validation = validate({ email, password }, constraints);
+
+  if (validation) {
+    return res
+      .status(400)
+      .json({
+        success: false,
+        error: validation.email?.[0] || "Invalid input",
+      });
+  }
+
   passport.authenticate("local", async (err, user, info) => {
     if (err) return next(err);
-    if (!user) return res.status(400).json({ error: "Invalid credentials" });
+    if (!user) {
+      return res.status(400).json({ success: false, error: "Invalid credentials" });
+    }
 
     req.login(user, async (err) => {
       if (err) return next(err);
@@ -330,6 +350,7 @@ app.post("/api/login", async (req, res, next) => {
       }
 
       res.json({
+        success: true,
         user: { id: user.id, name: user.name, email: user.email },
         unreadCounts,
       });
