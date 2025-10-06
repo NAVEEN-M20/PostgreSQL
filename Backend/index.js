@@ -315,36 +315,24 @@ passport.deserializeUser(async (id, cb) => {
 });
 
 // ---- Login ----
-app.post("/api/login", (req, res, next) => {
-  const { email, password } = req.body;
-
-  // Validate email + password
-  const constraints = {
-    email: { presence: true, email: true },
-    password: { presence: true },
-  };
-  const validation = validate({ email, password }, constraints);
-
-  if (validation) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        error: validation.email?.[0] || "Invalid input",
-      });
-  }
-
-  passport.authenticate("local", (err, user, info) => {
+app.post("/api/login", async (req, res, next) => {
+  passport.authenticate("local", async (err, user, info) => {
     if (err) return next(err);
-    if (!user)
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid credentials" });
+    if (!user) return res.status(400).json({ error: "Invalid credentials" });
 
-    req.login(user, (err) => {
+    req.login(user, async (err) => {
       if (err) return next(err);
-      const safeUser = { id: user.id, name: user.name, email: user.email };
-      return res.json({ success: true, user: safeUser });
+      
+      // Fetch unread counts immediately after login
+      const unreadCounts = await getUnreadCounts(user.id);
+      
+      // Emit to connected sockets
+      io.to(user.id.toString()).emit("unreadCounts", unreadCounts);
+      
+      res.json({ 
+        user: { id: user.id, name: user.name, email: user.email },
+        unreadCounts 
+      });
     });
   })(req, res, next);
 });
@@ -517,8 +505,16 @@ app.get("/api/messages/:otherUserId", async (req, res) => {
 });
 
 // Optional helper endpoint to check current session user
-app.get("/api/me", (req, res) => {
-  res.json({ user: req.user || null });
+app.get("/api/me", async (req, res) => {
+  if (req.user) {
+    const unreadCounts = await getUnreadCounts(req.user.id);
+    res.json({ 
+      user: req.user,
+      unreadCounts
+    });
+  } else {
+    res.json({ user: null, unreadCounts: {} });
+  }
 });
 
 // ----------------- START -----------------
