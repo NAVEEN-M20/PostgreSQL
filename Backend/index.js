@@ -23,18 +23,16 @@ env.config();
 // ----------------- CORS -----------------
 const FRONTEND = process.env.FRONTEND_URL || "http://localhost:5173";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
-const allowedOrigins = [FRONTEND].filter(Boolean);
+
+const allowedOrigins = [
+  FRONTEND,
+  "https://accounts.google.com",
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-
-      const allowedOrigins = [
-        process.env.FRONTEND_URL || "http://localhost:5173",
-        "https://accounts.google.com",
-      ];
-
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -45,6 +43,7 @@ app.use(
     credentials: true,
   })
 );
+
 // ----------------- MIDDLEWARE -----------------
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
