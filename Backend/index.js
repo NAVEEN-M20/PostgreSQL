@@ -28,12 +28,8 @@ const allowedOrigins = [FRONTEND].filter(Boolean);
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow non-browser requests (like curl, Postman)
       if (!origin) return callback(null, true);
-
-      const allowedOrigins = [
-        process.env.FRONTEND_URL || "http://localhost:5173",
-        "https://accounts.google.com",
-      ];
 
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -322,16 +318,18 @@ app.post("/api/login", async (req, res, next) => {
 
     req.login(user, async (err) => {
       if (err) return next(err);
-      
+
       // Fetch unread counts immediately after login
       const unreadCounts = await getUnreadCounts(user.id);
-      
+
       // Emit to connected sockets
-      io.to(user.id.toString()).emit("unreadCounts", unreadCounts);
-      
-      res.json({ 
+      if (onlineUsers[user.id]) {
+        io.to(onlineUsers[user.id]).emit("unreadCounts", unreadCounts);
+      }
+
+      res.json({
         user: { id: user.id, name: user.name, email: user.email },
-        unreadCounts 
+        unreadCounts,
       });
     });
   })(req, res, next);
@@ -508,9 +506,9 @@ app.get("/api/messages/:otherUserId", async (req, res) => {
 app.get("/api/me", async (req, res) => {
   if (req.user) {
     const unreadCounts = await getUnreadCounts(req.user.id);
-    res.json({ 
+    res.json({
       user: req.user,
-      unreadCounts
+      unreadCounts,
     });
   } else {
     res.json({ user: null, unreadCounts: {} });
