@@ -26,7 +26,8 @@ const LOCALDEV = "http://localhost:5173";
 const BACKEND_URL = process.env.BACKEND_URL;
 
 const allowedOrigins = [
-  FRONTEND,LOCALDEV,
+  FRONTEND,
+  LOCALDEV,
   "https://accounts.google.com",
 ].filter(Boolean);
 
@@ -162,10 +163,31 @@ io.on("connection", (socket) => {
   socket.on("markAsRead", async ({ senderId, receiverId }) => {
     try {
       // Update database to mark messages as read
-      await db.query(
-        "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false",
+      const result = await db.query(
+        "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false RETURNING *",
         [senderId, receiverId]
       );
+
+      // Send updated messages to both users for real-time read receipt update
+      if (result.rows.length > 0) {
+        // Get ALL updated message IDs (not just the latest one)
+        const updatedMessageIds = result.rows.map((row) => row.id);
+
+        // Notify the receiver (current user) that messages were marked as read
+        if (onlineUsers[receiverId]) {
+          io.to(onlineUsers[receiverId]).emit("messagesMarkedRead", {
+            senderId,
+            messageIds: updatedMessageIds, 
+          });
+        }
+
+        if (onlineUsers[senderId]) {
+          io.to(onlineUsers[senderId]).emit("messagesReadByReceiver", {
+            receiverId,
+            messageIds: updatedMessageIds, 
+          });
+        }
+      }
 
       // Update unread counts for both users
       await sendUnreadCounts(receiverId);
@@ -325,18 +347,18 @@ app.post("/api/login", async (req, res, next) => {
   const validation = validate({ email, password }, constraints);
 
   if (validation) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        error: validation.email?.[0] || "Invalid input",
-      });
+    return res.status(400).json({
+      success: false,
+      error: validation.email?.[0] || "Invalid input",
+    });
   }
 
   passport.authenticate("local", async (err, user, info) => {
     if (err) return next(err);
     if (!user) {
-      return res.status(400).json({ success: false, error: "Invalid credentials" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid credentials" });
     }
 
     req.login(user, async (err) => {
