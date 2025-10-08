@@ -22,10 +22,11 @@ env.config();
 
 // ----------------- CORS -----------------
 const FRONTEND = process.env.FRONTEND_URL || "https://taskportalx.netlify.app";
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+const LOCALDEV = "http://localhost:5173";
+const BACKEND_URL = process.env.BACKEND_URL;
 
 const allowedOrigins = [
-  FRONTEND,
+  FRONTEND,LOCALDEV,
   "https://accounts.google.com",
 ].filter(Boolean);
 
