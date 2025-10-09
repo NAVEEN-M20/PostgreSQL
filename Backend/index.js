@@ -87,7 +87,7 @@ const io = new Server(server, {
 
 const onlineUsers = {}; // userId -> socketId
 
-// Function to get unread counts for a user
+// OPTIMIZED: Function to get unread counts for a user
 const getUnreadCounts = async (userId) => {
   try {
     const result = await db.query(
@@ -110,7 +110,7 @@ const getUnreadCounts = async (userId) => {
   }
 };
 
-// Function to send unread counts to a user
+// OPTIMIZED: Function to send unread counts to a user
 const sendUnreadCounts = async (userId) => {
   try {
     const unreadCounts = await getUnreadCounts(userId);
@@ -120,6 +120,34 @@ const sendUnreadCounts = async (userId) => {
     }
   } catch (err) {
     console.error("Error sending unread counts:", err);
+  }
+};
+
+// NEW: Function to get last messages for all conversations
+const getLastMessages = async (userId) => {
+  try {
+    const result = await db.query(
+      `SELECT DISTINCT ON (conversation_partner) 
+        m.*,
+        CASE 
+          WHEN m.sender_id = $1 THEN m.receiver_id 
+          ELSE m.sender_id 
+        END as conversation_partner
+       FROM messages m
+       WHERE m.sender_id = $1 OR m.receiver_id = $1
+       ORDER BY conversation_partner, m.created_at DESC`,
+      [userId]
+    );
+
+    const lastMessages = {};
+    result.rows.forEach((row) => {
+      lastMessages[row.conversation_partner] = row;
+    });
+
+    return lastMessages;
+  } catch (err) {
+    console.error("Error fetching last messages:", err);
+    return {};
   }
 };
 
@@ -159,32 +187,32 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Mark messages as read from a specific user
+  // OPTIMIZED: Mark messages as read from a specific user
   socket.on("markAsRead", async ({ senderId, receiverId }) => {
     try {
       // Update database to mark messages as read
       const result = await db.query(
-        "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false RETURNING *",
+        "UPDATE messages SET is_read = true WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false RETURNING id",
         [senderId, receiverId]
       );
 
       // Send updated messages to both users for real-time read receipt update
       if (result.rows.length > 0) {
-        // Get ALL updated message IDs (not just the latest one)
         const updatedMessageIds = result.rows.map((row) => row.id);
 
         // Notify the receiver (current user) that messages were marked as read
         if (onlineUsers[receiverId]) {
           io.to(onlineUsers[receiverId]).emit("messagesMarkedRead", {
             senderId,
-            messageIds: updatedMessageIds, 
+            messageIds: updatedMessageIds,
           });
         }
 
+        // Notify the sender that their messages were read
         if (onlineUsers[senderId]) {
           io.to(onlineUsers[senderId]).emit("messagesReadByReceiver", {
             receiverId,
-            messageIds: updatedMessageIds, 
+            messageIds: updatedMessageIds,
           });
         }
       }
@@ -211,17 +239,44 @@ io.on("connection", (socket) => {
 // ----------------- ROUTES -----------------
 app.get("/", (req, res) => res.json({ message: "API running 🚀" }));
 
-// ---- Dashboard ----
+// ---- OPTIMIZED Dashboard ----
 app.get("/api/dashboard", async (req, res) => {
   try {
     const userId = req.user?.id || null;
+    
+    if (!userId) {
+      return res.json({ user: null, tasks: [] });
+    }
+
     const tasks = await db.query(
       "SELECT t.id, t.title, t.description, t.created_at, t.assigned_by, u.name AS assigned_by_name " +
         "FROM tasks t JOIN users u ON t.assigned_by = u.id " +
         "WHERE t.assigned_to = $1 ORDER BY t.created_at DESC",
       [userId]
     );
+    
     res.json({ user: req.user || null, tasks: tasks.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error loading tasks" });
+  }
+});
+
+// NEW: Dedicated tasks endpoint for dashboard
+app.get("/api/dashboard/tasks", async (req, res) => {
+  try {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const tasks = await db.query(
+      "SELECT t.id, t.title, t.description, t.created_at, t.assigned_by, u.name AS assigned_by_name " +
+        "FROM tasks t JOIN users u ON t.assigned_by = u.id " +
+        "WHERE t.assigned_to = $1 ORDER BY t.created_at DESC",
+      [req.user.id]
+    );
+    
+    res.json({ tasks: tasks.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error loading tasks" });
@@ -235,7 +290,7 @@ app.get("/api/users", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
 
     const users = await db.query(
-      "SELECT id, name, email FROM users WHERE id != $1",
+      "SELECT id, name, email FROM users WHERE id != $1 ORDER BY name ASC",
       [req.user.id]
     );
     res.json(users.rows);
@@ -510,7 +565,22 @@ app.post("/api/logout", (req, res) => {
   });
 });
 
-// ----------------- CHAT APIs -----------------
+// ----------------- OPTIMIZED CHAT APIs -----------------
+
+// NEW: Get last messages for all conversations (for instant sidebar loading)
+app.get("/api/messages/last-messages", async (req, res) => {
+  try {
+    if (!req.isAuthenticated())
+      return res.status(401).json({ error: "Unauthorized" });
+
+    const lastMessages = await getLastMessages(req.user.id);
+    res.json(lastMessages);
+  } catch (err) {
+    console.error("Error fetching last messages:", err);
+    res.status(500).json({ error: "Error fetching last messages" });
+  }
+});
+
 // Get unread counts for all users
 app.get("/api/messages/unread-counts", async (req, res) => {
   try {
@@ -525,6 +595,7 @@ app.get("/api/messages/unread-counts", async (req, res) => {
   }
 });
 
+// Get messages for specific conversation
 app.get("/api/messages/:otherUserId", async (req, res) => {
   try {
     if (!req.isAuthenticated())
@@ -551,13 +622,24 @@ app.get("/api/messages/:otherUserId", async (req, res) => {
 // Optional helper endpoint to check current session user
 app.get("/api/me", async (req, res) => {
   if (req.user) {
-    const unreadCounts = await getUnreadCounts(req.user.id);
-    res.json({
-      user: req.user,
-      unreadCounts,
-    });
+    try {
+      // OPTIMIZED: Fetch user data and unread counts in parallel
+      const [unreadCounts, lastMessages] = await Promise.all([
+        getUnreadCounts(req.user.id),
+        getLastMessages(req.user.id)
+      ]);
+      
+      res.json({
+        user: req.user,
+        unreadCounts,
+        lastMessages // Include last messages for instant sidebar
+      });
+    } catch (err) {
+      console.error("Error in /api/me:", err);
+      res.json({ user: req.user, unreadCounts: {}, lastMessages: {} });
+    }
   } else {
-    res.json({ user: null, unreadCounts: {} });
+    res.json({ user: null, unreadCounts: {}, lastMessages: {} });
   }
 });
 
