@@ -13,119 +13,60 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "./UserContext";
-import { io } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL;
-let socket;
 
 function Dashboard() {
   const [tasks, setTasks] = useState([]);
-  const { user, setUser } = useContext(UserContext);
+  const { user, socket, loading } = useContext(UserContext);
   const navigate = useNavigate();
-  const [socketConnected, setSocketConnected] = useState(false);
 
-  // Improved redirect logic
-  const redirectToLogin = useCallback(() => {
-    if (window.location.pathname !== '/login') {
+  // Simplified redirect logic
+  useEffect(() => {
+    if (!loading && user === null) {
       navigate("/login");
     }
-  }, [navigate]);
+  }, [user, loading, navigate]);
 
-  useEffect(() => {
-    if (user === null) {
-      redirectToLogin();
-    }
-  }, [user, redirectToLogin]);
-
-  // Modified fetchDashboard
-  const fetchDashboard = useCallback(async (retryCount = 0) => {
+  // Fetch tasks only - user is already available from UserProvider
+  const fetchTasks = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/dashboard`, {
+      const res = await axios.get(`${API_URL}/api/dashboard/tasks`, {
+        // Create dedicated endpoint
         withCredentials: true,
-        headers: {
-          "Cache-Control": "no-cache",
-        },
+        headers: { "Cache-Control": "no-cache" },
       });
-      
-      if (res.data?.user) {
-        setUser(res.data.user);
-        setTasks(res.data.tasks || []);
-      }
+      setTasks(res.data.tasks || []);
     } catch (err) {
-      console.error("Dashboard fetch error:", err);
-      if (retryCount < 2) {
-        setTimeout(() => fetchDashboard(retryCount + 1), 1000 * Math.pow(2, retryCount));
-      } else {
-        setUser(null);
-      }
+      console.error("Tasks fetch error:", err);
+      setTasks([]);
     }
-  }, [setUser]);
+  }, []);
 
-  // Improved socket initialization
+  // Initialize tasks only
   useEffect(() => {
-    let isMounted = true;
+    if (user && !loading) {
+      fetchTasks();
+    }
+  }, [user, loading, fetchTasks]);
 
-    const initializeSocket = () => {
-      if (!socket) {
-        socket = io(API_URL, {
-          withCredentials: true,
-          path: "/socket.io/",
-          reconnection: true,
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-        });
-
-        socket.on('connect', () => {
-          if (isMounted) setSocketConnected(true);
-        });
-
-        socket.on('disconnect', () => {
-          if (isMounted) setSocketConnected(false);
-        });
-
-        socket.on('connect_error', (error) => {
-          console.error('Socket connection error:', error);
-          if (isMounted) setSocketConnected(false);
-        });
-      }
-    };
-
-    const initializeDashboard = async () => {
-      initializeSocket();
-      if (isMounted) {
-        await fetchDashboard();
-      }
-    };
-
-    initializeDashboard();
-
-    return () => {
-      isMounted = false;
-      if (socket) {
-        socket.off('connect');
-        socket.off('disconnect');
-        socket.off('connect_error');
-      }
-    };
-  }, [fetchDashboard]);
-
-  // Improved delete handler with optimistic updates and error handling
+  // Optimized delete handler
   const handleDelete = useCallback(
     async (taskId, taskTitle, assignedById) => {
       const originalTasks = [...tasks];
       try {
+        // Optimistic update
         setTasks((prev) => prev.filter((task) => task.id !== taskId));
 
         await axios.delete(`${API_URL}/api/task/${taskId}`, {
           withCredentials: true,
         });
 
-        if (socketConnected && assignedById && user) {
+        if (socket && assignedById && user) {
           socket.emit("sendMessage", {
             senderId: user.id,
             receiverId: assignedById,
             message: `${taskTitle} completed!!`,
-            type: "task_completed",
           });
         }
       } catch (err) {
@@ -133,7 +74,7 @@ function Dashboard() {
         setTasks(originalTasks);
       }
     },
-    [user, tasks, socketConnected]
+    [user, tasks, socket]
   );
 
   // Memoized task list item to prevent unnecessary re-renders

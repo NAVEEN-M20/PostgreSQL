@@ -1,4 +1,3 @@
-// Logout.jsx
 import React, { useContext } from "react";
 import { Box, Paper, Typography, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
@@ -12,13 +11,24 @@ export default function Logout() {
 
   const handleYes = async () => {
     try {
-      await fetch(import.meta.env.VITE_API_URL + "/api/logout", { method: "POST", credentials: "include" });
+      await fetch(import.meta.env.VITE_API_URL + "/api/logout", {
+        method: "POST",
+        credentials: "include",
+      });
     } catch (e) {
       console.log(e);
     } finally {
       // Clear user session in client and reset theme to light
-      try { setUser && setUser(null); } catch(e){console.log(e);}
-      try { localStorage.removeItem("theme-mode"); } catch (e){console.log(e);}
+      try {
+        setUser && setUser(null);
+      } catch (e) {
+        console.log(e);
+      }
+      try {
+        localStorage.removeItem("theme-mode");
+      } catch (e) {
+        console.log(e);
+      }
       reset();
       navigate("/");
     }
@@ -58,11 +68,11 @@ export default function Logout() {
           variant="h4"
           sx={{
             fontFamily: "'Montserrat', sans-serif",
-            fontWeight: 700,
-            fontSize: { xs: "1.2rem", sm: "2rem" }, // responsive
-            letterSpacing: "2px",
+            fontWeight: 500,
+            fontSize: "clamp(1.2rem, 4vw, 2rem)", // scales from mobile to desktop
+            letterSpacing: "0.5px",
             mb: 4,
-            color: "#333",
+            color: "text.primary", // adapts to theme
           }}
         >
           Do You Want to Logout?
@@ -83,10 +93,13 @@ export default function Logout() {
               color: "white",
               textTransform: "uppercase",
               fontFamily: "'Rubik', sans-serif",
-              fontWeight: 600,
+              fontWeight: 500,
+              fontSize: "clamp(0.9rem, 2vw, 1rem)", // responsive button font
               letterSpacing: "1px",
-              px: 4,
-              py: 1.5,
+              px: 3,
+              py: 1.2,
+              borderRadius: 2,
+              boxShadow: 1,
               "&:hover": {
                 background: "linear-gradient(90deg, #ff9933 0%, #cc0000 100%)",
               },
@@ -104,10 +117,13 @@ export default function Logout() {
               color: "white",
               textTransform: "uppercase",
               fontFamily: "'Rubik', sans-serif",
-              fontWeight: 600,
+              fontWeight: 500,
               letterSpacing: "1px",
-              px: 4,
-              py: 1.5,
+              px: 3.4,
+              py: 1.3,
+              borderRadius: 2,
+              boxShadow: 1,
+              fontSize: "clamp(0.9rem, 2vw, 1rem)",
               "&:hover": {
                 background: "linear-gradient(90deg, #1a5ed9 0%, #54189c 100%)",
               },

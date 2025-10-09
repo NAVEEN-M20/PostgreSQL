@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   AppBar,
   Toolbar,
@@ -18,8 +18,9 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import { useThemeMode } from "./UseThemeMode";
 import NotificationBubble from "./NotificationBubble";
+import { UserContext } from "./UserContext";
 
-export default function Navbar({ unreadCounts }) {
+export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -27,14 +28,9 @@ export default function Navbar({ unreadCounts }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
   const { mode, toggle } = useThemeMode();
+  const { totalUnread } = useContext(UserContext);
 
-  // Total unread count
-  const totalUnread = Object.values(unreadCounts || {}).reduce(
-    (a, b) => a + b,
-    0
-  );
-
-  // Hide Navbar on Welcome/Login/Register
+  // Hide Navbar only on Welcome/Login/Register pages (no loading hide)
   const hideOn = ["/", "/login", "/register"];
   if (hideOn.includes(location.pathname)) return null;
 

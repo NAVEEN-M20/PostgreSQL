@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback } from "react";
+import React, { memo, useState, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -11,6 +11,8 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
+import DoneIcon from "@mui/icons-material/Done";
 import NotificationBubble from "./NotificationBubble";
 
 const ChatSidebar = ({
@@ -19,6 +21,9 @@ const ChatSidebar = ({
   selectedUser,
   isMobile,
   unreadCounts,
+  lastMessageTimestamps,
+  lastMessages,
+  currentUserId,
 }) => {
   const theme = useTheme();
   const handleSelect = useCallback((user) => onSelect(user), [onSelect]);
@@ -26,14 +31,70 @@ const ChatSidebar = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
-  // Filter users by search
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Optimized sorting
+  const sortedUsers = useMemo(() => {
+    const filtered = users.filter(
+      (user) =>
+        user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-  // Cancel search
+    const sorted = [...filtered].sort((a, b) => {
+      const timestampA = lastMessageTimestamps?.[a.id] || 0;
+      const timestampB = lastMessageTimestamps?.[b.id] || 0;
+      return timestampB - timestampA;
+    });
+
+    return sorted;
+  }, [users, lastMessageTimestamps, searchQuery]);
+
+  // Optimized last message formatting
+  const formatLastMessage = useCallback((user) => {
+    const lastMessage = lastMessages[user.id];
+    if (!lastMessage) return "No messages yet";
+
+    const isCurrentUser = lastMessage.sender_id === currentUserId;
+    const messageText = lastMessage.message;
+    
+    const truncatedMessage = messageText.length > 30 
+      ? messageText.substring(0, 30) + "..." 
+      : messageText;
+
+    return isCurrentUser ? `You: ${truncatedMessage}` : truncatedMessage;
+  }, [lastMessages, currentUserId]);
+
+  // Read receipt rendering
+  const renderLastMessageReadReceipt = useCallback((user) => {
+    const lastMessage = lastMessages[user.id];
+    
+    // Only show read receipt for messages sent by current user
+    if (!lastMessage || lastMessage.sender_id !== currentUserId) {
+      return null;
+    }
+
+    if (lastMessage.is_read) {
+      return (
+        <DoneAllIcon 
+          sx={{ 
+            fontSize: 14, 
+            color: theme.palette.mode === "dark" ? "#6a11cb" : "#2575fc",
+            ml: 0.5 
+          }} 
+        />
+      );
+    } else {
+      return (
+        <DoneIcon 
+          sx={{ 
+            fontSize: 14, 
+            color: theme.palette.mode === "dark" ? "#666" : "#999",
+            ml: 0.5 
+          }} 
+        />
+      );
+    }
+  }, [lastMessages, currentUserId, theme.palette.mode]);
+
   const handleCancelSearch = () => {
     setSearchQuery("");
     setSearchFocused(false);
@@ -53,7 +114,6 @@ const ChatSidebar = ({
         minHeight: 0,
       }}
     >
-      {/* Header */}
       <Typography
         variant="h6"
         sx={{
@@ -66,11 +126,16 @@ const ChatSidebar = ({
         Chats
       </Typography>
 
-      {/* Search Bar */}
-      <Box sx={{ px: 2, py: 1, borderBottom: theme.palette.mode === "dark" ? "#333" : "#f5f5f5", }}>
+      <Box
+        sx={{
+          px: 2,
+          py: 1,
+          borderBottom: theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
+        }}
+      >
         <TextField
           fullWidth
-          placeholder="Select users..."
+          placeholder="Search users..."
           size="small"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -93,8 +158,7 @@ const ChatSidebar = ({
             sx: {
               py: 1.2,
               borderRadius: "24px",
-              backgroundColor:
-                theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
+              backgroundColor: theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
               "& .MuiInputBase-input": {
                 color: theme.palette.mode === "dark" ? "#fff" : "#000",
               },
@@ -103,7 +167,6 @@ const ChatSidebar = ({
         />
       </Box>
 
-      {/* Scrollable user list */}
       <Box
         sx={{
           flex: 1,
@@ -115,14 +178,12 @@ const ChatSidebar = ({
         }}
       >
         <List sx={{ p: 0 }}>
-          {filteredUsers.length === 0 ? (
-            <Typography
-              sx={{ p: 2, color: "text.secondary", textAlign: "center" }}
-            >
-              No user found
+          {sortedUsers.length === 0 ? (
+            <Typography sx={{ p: 2, color: "text.secondary", textAlign: "center" }}>
+              {searchQuery ? "No users found" : "No users available"}
             </Typography>
           ) : (
-            filteredUsers.map((user) => {
+            sortedUsers.map((user) => {
               const unreadCount = unreadCounts[user.id] || 0;
 
               return (
@@ -132,8 +193,12 @@ const ChatSidebar = ({
                   onClick={() => handleSelect(user)}
                   sx={{
                     borderRadius: 0,
-                    borderBottom: theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
+                    borderColor: theme.palette.mode === "dark" ? "#333" : "#f5f5f5",
                     position: "relative",
+                    "&.Mui-selected": {
+                      backgroundColor:
+                        theme.palette.mode === "dark" ? "#1e1e1e" : "#e3f2fd",
+                    },
                   }}
                 >
                   <Box
@@ -144,14 +209,12 @@ const ChatSidebar = ({
                       py: 1,
                     }}
                   >
-                    {/* User Avatar */}
                     <Box
                       sx={{
                         width: 48,
                         height: 48,
                         borderRadius: "50%",
-                        background:
-                          "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
+                        background: "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -163,33 +226,35 @@ const ChatSidebar = ({
                     >
                       {user.name ? user.name.charAt(0).toUpperCase() : "?"}
                     </Box>
-                    {/* User Info */}
-                    <Box sx={{ flexGrow: 1 }}>
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                       <Typography
-                        className="gradient-text"
                         sx={{
                           fontWeight: "bold",
-                          background:
-                            "linear-gradient(90deg, #2575fc 0%, #6a11cb 100%)",
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                          display: "inline-block",
+                          color: theme.palette.mode === "dark" ? "#fff" : "#000",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {user.name || user.email}
                       </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mt: 0.5 }}
-                      >
-                        {user.email}
-                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            flex: 1,
+                          }}
+                        >
+                          {formatLastMessage(user)}
+                        </Typography>
+                        {renderLastMessageReadReceipt(user)}
+                      </Box>
                     </Box>
-                    {/* Unread Bubble */}
-                    {unreadCount > 0 && (
-                      <NotificationBubble count={unreadCount} size={20} />
-                    )}
+                    {unreadCount > 0 && <NotificationBubble count={unreadCount} size={20} />}
                   </Box>
                 </ListItemButton>
               );

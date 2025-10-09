@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import Welcome from "./components/Welcome";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
-import NewTask from "./components/NewTask.jsx"; 
+import NewTask from "./components/NewTask.jsx";
 import Chat from "./components/Chat";
 import Logout from "./components/Logout";
 import { UserProvider } from "./components/UserProvider";
@@ -12,11 +12,12 @@ import NavBar from "./components/NavBar";
 import ThemeModeProvider from "./components/ThemeContext.jsx";
 
 function App() {
-  const [unreadCounts, setUnreadCounts] = useState({});
-
   useEffect(() => {
     const setVh = () => {
-      document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+      document.documentElement.style.setProperty(
+        "--vh",
+        `${window.innerHeight * 0.01}px`
+      );
     };
     setVh();
     window.addEventListener("resize", setVh);
@@ -28,8 +29,8 @@ function App() {
   }, []);
 
   return (
-    <UserProvider>
-      <ThemeModeProvider>
+    <ThemeModeProvider>
+      <UserProvider>
         <Router>
           <Routes>
             <Route path="/" element={<Welcome />} />
@@ -39,11 +40,11 @@ function App() {
               path="/*"
               element={
                 <>
-                  <NavBar unreadCounts={unreadCounts} />
+                  <NavBar />
                   <Routes>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/newtask" element={<NewTask />} />
-                    <Route path="/chat" element={<Chat setUnreadCounts={setUnreadCounts} />} />
+                    <Route path="/chat" element={<Chat />} />
                     <Route path="/logout" element={<Logout />} />
                   </Routes>
                 </>
@@ -51,8 +52,8 @@ function App() {
             />
           </Routes>
         </Router>
-      </ThemeModeProvider>
-    </UserProvider>
+      </UserProvider>
+    </ThemeModeProvider>
   );
 }
 
